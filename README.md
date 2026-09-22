@@ -1,36 +1,54 @@
 # OptiSignal-AI
 
-Sistema de visión por computador para la detección y verificación óptica autónoma de fallas en semáforos viales.
+Sistema de visión por computador para la detección y verificación óptica autónoma de fallas en semáforos viales mediante inspección externa.
 
-Proyecto de curso — Visión por Computador
+Proyecto de curso — Visión por Computador  
 Universidad Militar Nueva Granada (UMNG)
 
-**Autores:** Juan Ceron, Juan Camilo Niño, Nicolás Acevedo
+**Autores:** Juan Cerón, Juan Camilo Niño, Nicolás Acevedo
 
-> **Estado del proyecto:** en fase de planeación. Este repositorio contiene la propuesta y el diseño técnico; aún no se ha desarrollado ni implementado.
+> **Estado del proyecto:** En fase de desarrollo y estructuración técnica.
+
+---
 
 ## Descripción
 
-OptiSignal-AI propone verificar si un semáforo está funcionando correctamente a partir únicamente de lo que una cámara observa, sin depender de ningún controlador de tráfico externo. Los sistemas actuales detectan fallas midiendo la corriente eléctrica de cada módulo LED, lo cual no permite constatar si la señal es realmente visible (lente obstruido, sucio o degradado). OptiSignal-AI busca verificar la señal desde la perspectiva óptica directa.
+OptiSignal-AI propone verificar si un semáforo está funcionando correctamente a partir únicamente de lo que una cámara observa, sin depender ni conectarse a ningún controlador de tráfico externo. 
+
+Los sistemas tradicionales detectan fallas evaluando parámetros eléctricos internos (como el consumo de corriente en módulos LED), lo cual presenta una limitación crítica: no constatan si la señal es efectivamente visible hacia la vía (lentes obstruidos, suciedad acumulada, roturas o degradación del policarbonato). OptiSignal-AI audita el funcionamiento desde la perspectiva óptica directa mediante una filosofía de supervisión no invasiva tipo "caja negra".
+
+---
 
 ## Enfoque técnico
 
-1. **Detección:** un modelo de detección de objetos (YOLO) localiza el semáforo y cada uno de sus lentes (rojo, amarillo, verde).
-2. **Clasificación:** se determina el estado visual de cada lente (encendido, apagado, anómalo u obstruido).
-3. **Validación autónoma:** el estado observado se contrasta contra la lógica conocida de un semáforo — un solo color encendido a la vez, transiciones en el orden correcto, duración de fase dentro de un rango razonable — sin requerir el estado reportado por ningún controlador externo. Discrepancias sostenidas (dos colores encendidos a la vez, un color trabado más allá de su tiempo típico, un lente sin emisión cuando debería estarlo) se registran como anomalía.
+El pipeline de procesamiento opera de forma secuencial y desacoplada:
 
-Esta validación por máquina de estados es lo que hace que el sistema sea autónomo: no depende de acceso a infraestructura de tráfico real, opera únicamente sobre la señal visual observada.
+1. **Detección del cabezal:** Un modelo de aprendizaje profundo de una sola etapa (YOLO) localiza espacialmente la estructura del semáforo en el fotograma.
+2. **Aislamiento y clasificación cromática:** La región delimitada se divide verticalmente en tres subregiones (lentes rojo, amarillo y verde). Mediante procesamiento digital en espacio de color HSV con OpenCV, se evalúa la saturación y el brillo para determinar qué luz se encuentra encendida o si los lentes están apagados.
+3. **Validación temporal autónoma (FSM):** El estado visual observado se procesa mediante una Máquina de Estados Finitos (FSM) que valida la coherencia secuencial. Esta máquina está adaptada a la normativa vial colombiana, donde las transiciones entre fases restrictivas y permisivas deben pasar obligatoriamente por luz amarilla:
+   $$\text{ROJO} \longrightarrow \text{AMARILLO}_{\text{prep}} \longrightarrow \text{VERDE} \longrightarrow \text{AMARILLO}_{\text{desp}} \longrightarrow \text{ROJO}$$
+   Discrepancias sostenidas (dos luces encendidas al tiempo, apagado total, omisión del amarillo o estados trabados más allá de su temporización) disparan alertas automáticas.
 
-## Interfaz de gestión
+El desacoplamiento entre el detector visual y la máquina de estados permite entrenar la red sobre datos visuales genéricos y ajustar de forma modular la lógica de secuencia a cualquier regulación vial local.
 
-Como componente adicional, se contempla una interfaz que centralice las alertas generadas por el sistema de visión, permitiendo visualizar y priorizar las fallas detectadas. Es un complemento de valor práctico, subordinado al componente de visión por computador, que sigue siendo el eje central de la propuesta.
+---
 
 ## Datasets de referencia
 
-- [LISA Traffic Light Dataset](https://cvrr.ucsd.edu/) — ~43,000 imágenes, ~113,000 semáforos anotados con estado.
-- Bosch Small Traffic Lights Dataset (BSTLD) — ~13,400 imágenes anotadas.
-- DriveU Traffic Light Dataset (DTLD) — ~230,000 semáforos anotados.
+El entrenamiento, ajuste y evaluación del sistema se fundamentan exclusivamente en tres repositorios abiertos de referencia internacional:
 
-## Validación planeada
+- **[LISA Traffic Light Dataset](https://cvrr.ucsd.edu/):** ~43,000 imágenes y ~113,000 anotaciones en secuencias diurnas y nocturnas bajo condiciones de tráfico real.
+- **Bosch Small Traffic Lights Dataset (BSTLD):** ~13,400 imágenes de alta resolución anotadas con semáforos de escala muy reducida.
+- **DriveU Traffic Light Dataset (DTLD):** ~230,000 instancias de semáforos que incluyen secuencias continuas con fases de transición amarillas.
 
-Prototipo a escala reducida: semáforo miniatura con LEDs controlados por microcontrolador (ESP32) y una cámara fija enfrente. Las fallas se simulan de forma controlada (apagando un color, atenuando brillo, obstruyendo un lente) para validar la detección del sistema de visión.
+---
+
+## Interfaz de gestión
+
+Como componente de visualización y monitoreo, el sistema integra una interfaz web construida en Angular y un backend en FastAPI con base de datos SQLite. Esta plataforma permite centralizar y registrar las alertas generadas por el pipeline de visión, visualizando el estado actual y el historial de anomalías.
+
+---
+
+## Validación experimental
+
+Para la validación del sistema en laboratorio se contempla un semáforo a escala controlada basado en un microcontrolador ESP32 con diodos LED (rojo, amarillo y verde) y una cámara fija con línea de vista directa. El prototipo permite simular de forma controlada el ciclo normal de conmutación e inyectar fallas inducidas (luces simultáneas, apagón total o secuencias incorrectas) para corroborar la precisión del sistema de visión.
