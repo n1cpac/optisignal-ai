@@ -1,0 +1,24 @@
+# Data preparation and processing dependencies
+
+# Image processing
+opencv-python==4.8.1.78
+Pillow==10.0.0
+numpy==1.24.3
+
+# Data handling
+pandas==2.0.3
+scipy==1.11.2
+
+# YOLO and ML
+ultralytics==8.0.195
+torch==2.0.1
+torchvision==0.15.2
+
+# Utilities
+requests==2.31.0
+tqdm==4.66.1
+pyyaml==6.0.1
+
+# Validation and testing
+pytest==7.4.0
+pytest-cov==4.1.0
