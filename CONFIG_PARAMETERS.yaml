@@ -1,0 +1,163 @@
+# Configuration Parameters for OptiSignal-AI
+# This file centralizes all tunable parameters for the traffic light detection system
+
+# ============================================================================
+# YOLO DETECTOR CONFIGURATION
+# ============================================================================
+detector:
+  model_path: "models/best.pt"
+  confidence_threshold: 0.5          # Minimum confidence for detection
+  iou_threshold: 0.45                # IoU threshold for NMS
+  device: "cpu"                      # 'cpu' or 'cuda' (GPU)
+  inference_timeout_ms: 35           # Maximum inference time per frame
+  input_size: 640                    # YOLO input resolution
+
+# ============================================================================
+# COLOR CLASSIFICATION (HSV THRESHOLDS)
+# ============================================================================
+color_classification:
+  # RED light thresholds (HSV space)
+  red:
+    hue_range: [0, 10]               # Hue range for red (0-180 in OpenCV)
+    saturation_min: 100              # Minimum saturation (0-255)
+    brightness_min: 100              # Minimum brightness/Value (0-255)
+    pixel_threshold: 0.05            # Minimum % of pixels to consider light ON
+
+  # YELLOW light thresholds (HSV space)
+  yellow:
+    hue_range: [20, 40]              # Hue range for yellow
+    saturation_min: 100              # Minimum saturation
+    brightness_min: 100              # Minimum brightness/Value
+    pixel_threshold: 0.05            # Minimum % of pixels to consider light ON
+
+  # GREEN light thresholds (HSV space)
+  green:
+    hue_range: [50, 90]              # Hue range for green
+    saturation_min: 100              # Minimum saturation
+    brightness_min: 100              # Minimum brightness/Value
+    pixel_threshold: 0.05            # Minimum % of pixels to consider light ON
+
+  # General thresholds
+  activation_threshold: 0.05         # theta_act: % of pixels to consider light active
+  brightness_threshold: 100          # V_min: minimum brightness for valid detection
+  saturation_threshold: 100          # S_min: minimum saturation for valid detection
+
+# ============================================================================
+# TRAFFIC LIGHT SEQUENCE TIMING (COLOMBIAN STANDARD)
+# ============================================================================
+traffic_light_timing:
+  # Minimum duration for each state (seconds)
+  red_min: 30
+  yellow_prep_min: 3
+  green_min: 20
+  yellow_desp_min: 3
+
+  # Maximum duration for each state (seconds) - tau_max
+  red_max: 120
+  yellow_prep_max: 5
+  green_max: 90
+  yellow_desp_max: 5
+
+  # Phase type identification
+  yellow_prep_duration: 3            # Expected duration of preparation yellow
+  yellow_desp_duration: 3            # Expected duration of despeje yellow
+
+# ============================================================================
+# ANOMALY DETECTION PARAMETERS
+# ============================================================================
+anomaly_detection:
+  # Confirmation window: minimum consecutive frames to confirm anomaly
+  confirmation_frames: 8             # N: frames required to confirm anomaly
+  fps: 30                            # Frames per second (for time calculations)
+  confirmation_time_ms: 267          # ~8 frames / 30 FPS = 0.267 seconds
+
+  # Anomaly-specific thresholds
+  all_lights_off:
+    pixel_threshold: 0.05            # All lights below this threshold
+    confirmation_frames: 8
+
+  multiple_lights_on:
+    min_lights_active: 2             # Number of lights active simultaneously
+    confirmation_frames: 8
+
+  invalid_transition:
+    confirmation_frames: 8
+
+  light_stuck:
+    confirmation_frames: 8           # Frames after exceeding tau_max
+
+  low_brightness:
+    brightness_threshold: 100        # V_min: minimum brightness
+    confirmation_frames: 8
+
+  obstructed_light:
+    dark_pixel_threshold: 0.80       # % of dark pixels (V < 50) to consider obstructed
+    confirmation_frames: 8
+
+# ============================================================================
+# CAMERA AND VIDEO INPUT
+# ============================================================================
+camera:
+  source: 0                          # 0 for webcam, or path to video file
+  resolution_width: 1280
+  resolution_height: 720
+  fps: 30
+  frame_buffer_size: 5               # Number of frames to buffer
+  timeout_seconds: 5                 # Timeout for camera connection
+
+# ============================================================================
+# DATABASE CONFIGURATION (SQLite)
+# ============================================================================
+database:
+  path: "./data/optisignal.db"
+  backup_path: "./data/backups/"
+  evidence_storage_path: "./data/evidence/"
+  max_evidence_size_mb: 5000         # Maximum storage for evidence images
+  retention_days: 90                 # Keep records for 90 days
+
+# ============================================================================
+# API AND FRONTEND COMMUNICATION
+# ============================================================================
+api:
+  host: "0.0.0.0"
+  port: 8000
+  update_interval_ms: 1000           # Frontend polling interval
+  max_alerts_per_response: 100       # Limit alerts in API response
+  cors_origins:
+    - "http://localhost:4200"
+    - "http://localhost:80"
+
+# ============================================================================
+# LOGGING AND MONITORING
+# ============================================================================
+logging:
+  level: "INFO"                      # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_file: "./logs/optisignal.log"
+  max_log_size_mb: 100
+  backup_count: 5
+  console_output: true
+
+monitoring:
+  track_fps: true
+  track_inference_time: true
+  track_memory_usage: true
+  performance_log_interval_seconds: 60
+
+# ============================================================================
+# SYSTEM HEALTH AND RECOVERY
+# ============================================================================
+system:
+  startup_delay_seconds: 2           # Delay before processing starts
+  recovery_timeout_seconds: 10       # Time to wait before recovery attempt
+  max_recovery_attempts: 3           # Maximum recovery attempts
+  graceful_shutdown_timeout_seconds: 5
+
+# ============================================================================
+# DEVELOPMENT AND TESTING
+# ============================================================================
+development:
+  debug_mode: false
+  save_debug_frames: false           # Save frames with detections for debugging
+  debug_output_path: "./debug/"
+  simulate_anomalies: false          # For testing purposes
+  test_mode: false
