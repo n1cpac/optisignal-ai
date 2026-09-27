@@ -1,54 +1,20 @@
-# Checklist de Fase 3 — Datasets de referencia
+# Checklist de Fase 3 — Datasets
 
-## Objetivo
-Descargar, estructurar y preparar los datasets abiertos internacionales para el entrenamiento del detector YOLO.
+## Implementado
 
----
+- [x] Limitar las fuentes a LISA y Bosch (BSTLD).
+- [x] Detectar estructura nativa local y evitar descargas cuando los datos existen.
+- [x] Descargar desde Google Drive como fallback para fuentes ausentes.
+- [x] Convertir anotaciones LISA CSV y Bosch YAML a una clase YOLO.
+- [x] Mantener los proveedores independientes y su raw data intacta.
+- [x] Crear particiones reproducibles 70/20/10, manifiestos y `data.yaml`.
+- [x] Validar etiquetas e imágenes.
+- [x] Ignorar raw data y derivados pesados mediante reglas Git.
+- [x] Sincronizar README, guía, reporte y plan con el pipeline.
+- [x] Ejecutar conversión, partición y validación local de ambos datasets (`PASS`).
 
-## Tareas completadas
+## Validación operacional
 
-### Documentación de datasets
-- [x] Crear `PHASE_3_DATASETS_GUIDE.md`
-- [x] Documentar LISA Traffic Light Dataset
-- [x] Documentar Bosch Small Traffic Lights Dataset (BSTLD)
-- [x] Documentar DriveU Traffic Light Dataset (DTLD)
-- [x] Especificar URLs de descarga y requisitos
+La ejecución local produjo 36,775 imágenes LISA y 7,147 Bosch, ambas con 0 etiquetas ausentes o inválidas. No se versionan los resultados que contienen datos derivados pesados.
 
-### Scripts de procesamiento
-- [x] Crear `download_datasets.py`
-- [x] Crear `convert_to_yolo.py`
-- [x] Crear `partition_dataset.py`
-- [x] Crear `validate_dataset.py`
-
-### Dependencias
-- [x] Crear `requirements_data.txt`
-
-### Documentación de resultados
-- [x] Crear `DATA_PREPARATION_REPORT.md`
-
----
-
-## Estadísticas esperadas
-
-| Dataset | Total | Entrenamiento | Validación | Pruebas |
-|---|---|---|---|---|
-| LISA | 43,007 | 30,105 | 8,601 | 4,301 |
-| BSTLD | 13,587 | 9,511 | 2,717 | 1,359 |
-| DTLD | 220,000 | 154,000 | 44,000 | 22,000 |
-| **Combinado** | **276,594** | **193,616** | **55,318** | **27,660** |
-
----
-
-## Próximos pasos
-
-Una vez completada la Fase 3:
-
-1. **Fase 4:** Entrenamiento del detector YOLO
-2. **Fase 5:** Clasificación de colores
-3. **Fase 10:** Pruebas y validación
-
----
-
-**Fecha de creación:** 2026-09-22
-**Responsable:** Integrante 1 (Visión por Computador)
-**Estado:** ✅ Completado
+**Estado de implementación:** Fase 3 implementada y validada con los datasets locales disponibles.

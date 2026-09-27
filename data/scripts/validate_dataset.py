@@ -94,7 +94,7 @@ def validate_dataset(input_dir: str, output_file: str = None) -> Dict:
         if not images_dir.exists():
             continue
         
-        image_files = list(images_dir.glob("*.[jp][pn]g"))
+        image_files = [p for p in images_dir.iterdir() if p.is_file() and p.suffix.lower() in {".jpg", ".jpeg", ".png"}]
         report["statistics"]["total_images"] += len(image_files)
         report["statistics"]["split_distribution"][split] = len(image_files)
         

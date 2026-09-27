@@ -11,7 +11,8 @@ Este documento define los roles, responsabilidades y áreas de trabajo para los 
 ### Responsabilidades principales
 
 1. **Curaduría y estructuración de datasets abiertos**
-   - Descargar y organizar los datasets LISA, BSTLD y DTLD
+   - Detectar datasets locales LISA/BSTLD y usar Google Drive como fallback
+   - Mantener intactos los originales y procesar cada fuente de forma independiente
    - Homogeneizar las etiquetas al formato estándar de YOLO (`.txt`)
    - Realizar partición estadística: 70% entrenamiento, 20% validación, 10% pruebas
    - Documentar el proceso de preparación de datos

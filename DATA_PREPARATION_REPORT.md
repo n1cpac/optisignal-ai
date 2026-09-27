@@ -1,49 +1,16 @@
-# Reporte de preparación de datos — OptiSignal-AI
+# Reporte de preparación de datos
 
-## Resumen ejecutivo
+## Estado observado en el repositorio
 
-Esta es la plantilla para el reporte de preparación de datos de la Fase 3. Se completará una vez que se descarguen y procesen los datasets.
+- **LISA:** raw data local presente bajo `data/datasets/lisa/`; contiene carpetas de secuencias y anotaciones CSV bajo `Annotations/Annotations/`.
+- **Bosch (BSTLD):** raw data local presente bajo `data/datasets/bosch/`; contiene imágenes PNG bajo `rgb/test/`, anotaciones `test.yaml` y licencia.
+- **LISA procesado:** 36,775 imágenes y 232,348 cajas. Partición: 25,742 train, 7,355 val y 3,678 test. Validación: `PASS`, 0 etiquetas ausentes y 0 inválidas.
+- **Bosch procesado:** 7,147 imágenes y 13,486 cajas. Partición: 5,002 train, 1,429 val y 716 test. Validación: `PASS`, 0 etiquetas ausentes y 0 inválidas.
 
----
+## Reproducir y registrar resultados
 
-## 1. Datasets descargados
+Resultados obtenidos el 2026-09-27 usando la raw data local presente. Los derivados están ignorados por Git porque se reconstruyen desde la raw data.
 
-### LISA Traffic Light Dataset
-- **Estado:** Pendiente de descarga
-- **Tama ño total:** ~2.5 GB
-- **Número de imágenes:** 43,007
+## Resultado
 
-### Bosch Small Traffic Lights Dataset (BSTLD)
-- **Estado:** Pendiente de descarga
-- **Tamaño total:** ~1.2 GB
-- **Número de imágenes:** 13,587
-
-### DriveU Traffic Light Dataset (DTLD)
-- **Estado:** Pendiente de descarga
-- **Tamaño total:** ~5.0 GB
-- **Número de imágenes:** 220,000
-
----
-
-## 2. Partición estadística
-
-### Distribución de datos
-
-- Entrenamiento: 70% (193,616 imágenes)
-- Validación: 20% (55,318 imágenes)
-- Pruebas: 10% (27,660 imágenes)
-
----
-
-## 3. Próximos pasos
-
-1. Descargar datasets
-2. Convertir a formato YOLO
-3. Particionar datos
-4. Validar integridad
-5. Proceder a Fase 4: Entrenamiento YOLO
-
----
-
-**Fecha de creación:** 2026-09-22
-**Responsable:** Integrante 1 (Visión por Computador)
+La arquitectura preserva los originales, evita una fusión entre proveedores y usa Google Drive únicamente como fallback cuando falta un dataset local. La conversión y validación local finalizaron correctamente para ambas fuentes.

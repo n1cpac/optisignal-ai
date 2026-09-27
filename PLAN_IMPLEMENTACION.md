@@ -80,7 +80,8 @@ optisignal-ai/
 ├── models/
 │   └── best.pt
 ├── data/
-│   ├── datasets/        # LISA, BSTLD, DTLD particionados
+│   ├── datasets/        # Raw data nativa LISA y Bosch (independientes)
+│   ├── processed/       # YOLO y particiones derivados, separados por dataset
 │   └── test_videos/     # Secuencias de video de prueba y fallas
 └── prototype/
     └── esp32/           # Firmware de prueba y simulación de fallas
@@ -126,13 +127,12 @@ Dispositivo físico de laboratorio capaz de reproducir secuencias normales y fal
 
 ## 7. Fase 3 — Datasets de referencia
 
-El entrenamiento y la evaluación del detector se realizan exclusivamente a partir de las bases de datos abiertas internacionales especializadas en semaforización.
+El entrenamiento y la evaluación del detector se realizan exclusivamente con LISA y Bosch. La raw data permanece intacta; cada dataset tiene su propio espacio de procesamiento y partición.
 
 ### Fuentes utilizadas
 
 - **LISA Traffic Light Dataset:** Secuencias diurnas y nocturnas con variaciones lumínicas.
 - **Bosch Small Traffic Lights Dataset (BSTLD):** Anotaciones de semáforos a escala pequeña.
-- **DriveU Traffic Light Dataset (DTLD):** Gran volumen de instancias urbanas con transiciones.
 
 ### Clases y partición
 
@@ -146,7 +146,9 @@ La segmentación interna de las tres luces se resuelve geométricamente dentro d
 
 ### Actividades
 
-- Descargar y estructurar los subconjuntos representativos de LISA, BSTLD y DTLD.
+- Detectar primero los datasets locales y usar Google Drive como fallback si falta alguno.
+- Convertir las anotaciones nativas de LISA (CSV) y Bosch (YAML) a YOLO sin modificar la raw data.
+- Particionar cada dataset por separado (70/20/10) y validar los derivados.
 - Homogeneizar las etiquetas al formato estándar de YOLO (`.txt`).
 - Realizar la partición estadística:
   - Entrenamiento: 70 %.
@@ -457,7 +459,7 @@ Sistema ejecutable y desplegable de forma automatizada con Docker Compose.
 | Semana | Actividad |
 |---|---|
 | 1 | Definición metodológica, arquitectura y lógica de secuencia vial |
-| 2 | Preparación y partición de datasets abiertos (LISA, BSTLD, DTLD) |
+| 2 | Preparación y partición independiente de LISA y Bosch |
 | 3 | Entrenamiento y evaluación del modelo detector con YOLO |
 | 4 | Desarrollo del clasificador cromático en espacio HSV con OpenCV |
 | 5 | Programación de la máquina de estados finitos (FSM) con histéresis temporal |
@@ -470,7 +472,7 @@ Sistema ejecutable y desplegable de forma automatizada con Docker Compose.
 ## 18. Distribución sugerida del equipo
 
 ### Integrante 1 — Visión por computador y datasets
-- Curaduría y estructuración de los datasets abiertos (LISA, BSTLD, DTLD).
+- Curaduría y estructuración independiente de LISA y Bosch.
 - Entrenamiento y benchmarking del detector YOLO.
 - Segmentación geométrica y algoritmos de color en OpenCV (HSV).
 

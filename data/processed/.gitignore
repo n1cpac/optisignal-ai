@@ -1,0 +1,4 @@
+# Derived images, labels, partitions, manifests and validation outputs are reproducible.
+*
+!.gitignore
+!README.md

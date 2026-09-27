@@ -1,145 +1,68 @@
 #!/usr/bin/env python3
-"""
-Dataset download script for OptiSignal-AI
-
-Downloads traffic light datasets from public sources.
-Supports: LISA, BSTLD, DTLD
-
-Usage:
-    python download_datasets.py --dataset lisa --output ../datasets/
-    python download_datasets.py --dataset bstld --output ../datasets/
-    python download_datasets.py --dataset dtld --output ../datasets/
-"""
+"""Resolve local LISA/Bosch datasets first; fetch the shared Drive folder only if needed."""
 
 import argparse
-import os
+import shutil
+import tempfile
 from pathlib import Path
+from typing import Dict
+
+DRIVE_URL = "https://drive.google.com/drive/folders/1_Q2jS-ZgivHq8bc2KpVxw58tIeP60f5x?usp=sharing"
 
 
-def download_lisa(output_dir: str) -> bool:
-    """
-    Download LISA Traffic Light Dataset from Kaggle.
-    
-    Args:
-        output_dir: Directory to save the dataset
-        
-    Returns:
-        True if successful, False otherwise
-    """
-    print("\n" + "="*70)
-    print("LISA Traffic Light Dataset")
-    print("="*70)
-    print("\nDataset: LISA Traffic Light Dataset")
-    print("Source: https://www.kaggle.com/datasets/mbornstein/lisa-traffic-light-dataset")
-    print("Size: ~2.5 GB")
-    print("\nInstructions:")
-    print("1. Go to: https://www.kaggle.com/datasets/mbornstein/lisa-traffic-light-dataset")
-    print("2. Click 'Download' button")
-    print("3. Extract the ZIP file to:", os.path.join(output_dir, "LISA"))
-    print("\n" + "="*70)
-    return True
+def is_lisa(root: Path) -> bool:
+    return root.is_dir() and any(root.rglob("*.csv")) and any(root.rglob("*.jpg"))
 
 
-def download_bstld(output_dir: str) -> bool:
-    """
-    Download Bosch Small Traffic Lights Dataset.
-    
-    Args:
-        output_dir: Directory to save the dataset
-        
-    Returns:
-        True if successful, False otherwise
-    """
-    print("\n" + "="*70)
-    print("Bosch Small Traffic Lights Dataset (BSTLD)")
-    print("="*70)
-    print("\nDataset: BSTLD")
-    print("Source: https://hci.iwr.uni-heidelberg.de/node/6132")
-    print("Size: ~1.2 GB")
-    print("\nInstructions:")
-    print("1. Go to: https://hci.iwr.uni-heidelberg.de/node/6132")
-    print("2. Register (free account required)")
-    print("3. Download the dataset")
-    print("4. Extract to:", os.path.join(output_dir, "BSTLD"))
-    print("\n" + "="*70)
-    return True
+def is_bosch(root: Path) -> bool:
+    return root.is_dir() and (root / "test.yaml").is_file() and any(root.rglob("*.png"))
 
 
-def download_dtld(output_dir: str) -> bool:
-    """
-    Download DriveU Traffic Light Dataset.
-    
-    Args:
-        output_dir: Directory to save the dataset
-        
-    Returns:
-        True if successful, False otherwise
-    """
-    print("\n" + "="*70)
-    print("DriveU Traffic Light Dataset (DTLD)")
-    print("="*70)
-    print("\nDataset: DTLD")
-    print("Source: https://www.uni-tuebingen.de/en/faculties/faculty-of-science/departments/computer-science/chair-of-autonomous-vision/datasets/")
-    print("Size: ~5.0 GB")
-    print("\nInstructions:")
-    print("1. Go to: https://www.uni-tuebingen.de/...")
-    print("2. Register (free account required)")
-    print("3. Download the dataset")
-    print("4. Extract to:", os.path.join(output_dir, "DTLD"))
-    print("\n" + "="*70)
-    return True
+def resolve_datasets(data_root: Path, source_url: str = DRIVE_URL) -> Dict[str, Path]:
+    """Return native roots. Existing valid datasets are never downloaded or overwritten."""
+    validators = {"lisa": is_lisa, "bosch": is_bosch}
+    roots = {name: data_root / name for name in validators}
+    missing = [name for name, root in roots.items() if not validators[name](root)]
+    if not missing:
+        print("LISA y Bosch disponibles localmente; no se descargan.")
+        return roots
+    occupied = [name for name in missing if roots[name].exists()]
+    if occupied:
+        raise RuntimeError(
+            f"Hay carpetas locales incompletas para {', '.join(occupied)}. No se sobrescribirán; corrige o mueve esas carpetas antes de continuar."
+        )
+
+    try:
+        import gdown
+    except ImportError as exc:
+        raise RuntimeError(
+            f"Faltan datasets locales ({', '.join(missing)}). Instala gdown para obtenerlos de Google Drive."
+        ) from exc
+
+    data_root.mkdir(parents=True, exist_ok=True)
+    print(f"Faltan {', '.join(missing)}; descargando Google Drive a una carpeta temporal.")
+    with tempfile.TemporaryDirectory(prefix="optisignal-datasets-") as temporary:
+        result = gdown.download_folder(url=source_url, output=temporary, quiet=False, remaining_ok=True)
+        if not result:
+            raise RuntimeError("Google Drive no devolvió archivos. Comprueba que la carpeta sea accesible y conserva su estructura esperada.")
+        invalid = [name for name in missing if not validators[name](Path(temporary) / name)]
+        if invalid:
+            raise RuntimeError(f"La descarga no produjo la estructura esperada para: {', '.join(invalid)}")
+        for name in missing:
+            shutil.copytree(Path(temporary) / name, roots[name])
+    return roots
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Download traffic light datasets for OptiSignal-AI"
-    )
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        choices=["lisa", "bstld", "dtld", "all"],
-        default="all",
-        help="Dataset to download (default: all)"
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="../datasets/",
-        help="Output directory for datasets (default: ../datasets/)"
-    )
-    
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-root", type=Path, default=Path(__file__).resolve().parents[1] / "datasets")
+    parser.add_argument("--drive-url", default=DRIVE_URL)
     args = parser.parse_args()
-    
-    # Create output directory
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    print("\n" + "#"*70)
-    print("# OptiSignal-AI Dataset Download Tool")
-    print("#"*70)
-    print(f"\nOutput directory: {output_dir.absolute()}")
-    
-    # Download selected datasets
-    if args.dataset in ["lisa", "all"]:
-        download_lisa(str(output_dir))
-    
-    if args.dataset in ["bstld", "all"]:
-        download_bstld(str(output_dir))
-    
-    if args.dataset in ["dtld", "all"]:
-        download_dtld(str(output_dir))
-    
-    print("\n" + "#"*70)
-    print("# Download Instructions Complete")
-    print("#"*70)
-    print("\nNext steps:")
-    print("1. Download datasets manually from the URLs above")
-    print("2. Extract to the specified directories")
-    print("3. Run: python convert_to_yolo.py")
-    print("4. Run: python partition_dataset.py")
-    print("5. Run: python validate_dataset.py")
-    print("\n")
+    roots = resolve_datasets(args.data_root, args.drive_url)
+    for name, path in roots.items():
+        print(f"{name}: {path} ({'disponible' if (is_lisa if name == 'lisa' else is_bosch)(path) else 'no disponible'})")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

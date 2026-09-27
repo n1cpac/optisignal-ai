@@ -1,123 +1,51 @@
-# Fase 3 — Datasets de referencia — OptiSignal-AI
+# Fase 3 — Datasets de referencia
 
-## Introducción
+## Fuentes y estructura observada
 
-Esta fase cubre la descarga, estructuración y preparación de los datasets abiertos internacionales especializados en detección de semáforos.
+El proyecto usa exclusivamente **LISA** y **Bosch Small Traffic Lights Dataset (BSTLD)**, almacenados de forma independiente. La descarga existente de LISA contiene secuencias en carpetas como `dayTrain`, `daySequence1`, `nightTrain` y CSV en `Annotations/Annotations`. Bosch contiene imágenes en `rgb/test` y anotaciones en `test.yaml`; las rutas de ese YAML apuntan a un servidor externo, por lo que el conversor las resuelve usando el nombre de archivo local.
 
----
+No se reorganiza ni modifica la raw data. La estructura recomendada es:
 
-## 1. Datasets utilizados
-
-### 1.1 LISA Traffic Light Dataset
-
-**Descripción:** Dataset de la Universidad de California (San Diego) con secuencias de video diurnas y nocturnas de semáforos en condiciones reales de tráfico urbano.
-
-**Características:**
-- Aproximadamente 43,007 fotogramas anotados
-- Variaciones lumínicas (día, noche, atardecer)
-- Múltiples ángulos y distancias de captura
-- Anotaciones de bounding box para cabezales semafóricos
-
-**Descarga:** https://www.kaggle.com/datasets/mbornstein/lisa-traffic-light-dataset
-
----
-
-### 1.2 Bosch Small Traffic Lights Dataset (BSTLD)
-
-**Descripción:** Dataset de Bosch con enfoque en semáforos a escala pequeña (lejanos) en imágenes de conducción urbana.
-
-**Características:**
-- Aproximadamente 13,587 imágenes anotadas
-- Semáforos a diferentes escalas y distancias
-- Anotaciones de bounding box y estado de luz
-- Condiciones variadas de iluminación
-
-**Descarga:** https://hci.iwr.uni-heidelberg.de/node/6132
-
----
-
-### 1.3 DriveU Traffic Light Dataset (DTLD)
-
-**Descripción:** Dataset de la Universidad de Tuebingen con gran volumen de instancias de semáforos en contexto urbano europeo.
-
-**Características:**
-- Aproximadamente 220,000 anotaciones de semáforos
-- Variedad de condiciones climáticas y lumínicas
-- Anotaciones detalladas de estado de luz
-- Secuencias de video continuo
-
-**Descarga:** https://www.uni-tuebingen.de/en/faculties/faculty-of-science/departments/computer-science/chair-of-autonomous-vision/datasets/
-
----
-
-## 2. Estadísticas esperadas
-
-### Cantidad de imágenes
-
-| Dataset | Total | Entrenamiento | Validación | Pruebas |
-|---|---|---|---|---|
-| LISA | 43,007 | 30,105 | 8,601 | 4,301 |
-| BSTLD | 13,587 | 9,511 | 2,717 | 1,359 |
-| DTLD | 220,000 | 154,000 | 44,000 | 22,000 |
-| **Combinado** | **276,594** | **193,616** | **55,318** | **27,660** |
-
----
-
-## 3. Proceso de descarga
-
-### Opción 1: Descarga manual
-
-1. **LISA:** Ir a https://www.kaggle.com/datasets/mbornstein/lisa-traffic-light-dataset
-2. **BSTLD:** Ir a https://hci.iwr.uni-heidelberg.de/node/6132
-3. **DTLD:** Ir a https://www.uni-tuebingen.de/...
-
-### Opción 2: Descarga automatizada
-
-```bash
-cd data/scripts
-python download_datasets.py --dataset all --output ../datasets/
+```text
+data/
+├── datasets/                 # originales descargados; ignorados por Git
+│   ├── lisa/                 # estructura nativa LISA intacta
+│   └── bosch/                # estructura nativa BSTLD intacta
+└── processed/                # artefactos derivados; ignorados por Git
+    ├── lisa/
+    │   ├── yolo/             # images/ y labels/ planos
+    │   └── partitioned/      # images/{train,val,test}, labels/{train,val,test}
+    └── bosch/
+        ├── yolo/
+        └── partitioned/
 ```
 
----
+Las imágenes derivadas se enlazan con hard links cuando el sistema de archivos lo permite; en otros casos se copian. Cada fuente conserva su propio conjunto y partición; no se fusionan ni se mezclan.
 
-## 4. Conversión a formato YOLO
+## Disponibilidad de datos
 
-```bash
-python convert_to_yolo.py --dataset lisa --input ../datasets/LISA/ --output ../datasets/LISA_yolo/
-python convert_to_yolo.py --dataset bstld --input ../datasets/BSTLD/ --output ../datasets/BSTLD_yolo/
-python convert_to_yolo.py --dataset dtld --input ../datasets/DTLD/ --output ../datasets/DTLD_yolo/
+El resolvedor local-first no vuelve a descargar un dataset que ya está presente. Si falta LISA o Bosch, obtiene la carpeta compartida indicada desde `download_datasets.py`; necesita `gdown`. La carpeta compartida debe exponer los directorios `lisa/` y `bosch/` con sus estructuras nativas.
+
+```powershell
+python data/scripts/download_datasets.py
 ```
 
----
+Se puede cambiar la raíz local o el enlace con `--data-root` y `--drive-url`. Si no están disponibles los datos locales ni la dependencia `gdown`, el script informa el requisito y termina con error.
 
-## 5. Partición estadística
+## Preparación y partición
 
-```bash
-python partition_dataset.py --input ../datasets/LISA_yolo/ --output ../datasets/LISA_partitioned/ --seed 42
-python partition_dataset.py --input ../datasets/BSTLD_yolo/ --output ../datasets/BSTLD_partitioned/ --seed 42
-python partition_dataset.py --input ../datasets/DTLD_yolo/ --output ../datasets/DTLD_partitioned/ --seed 42
-python partition_dataset.py --combine --inputs ../datasets/LISA_partitioned/ ../datasets/BSTLD_partitioned/ ../datasets/DTLD_partitioned/ --output ../datasets/combined/ --seed 42
+Instala `Pillow`, `PyYAML` y `gdown` (ver `data/requirements_data.txt`). El entrypoint ejecuta detección local-first, descarga faltantes, conversión, partición y validación por cada fuente:
+
+```powershell
+python data/scripts/prepare_datasets.py
 ```
 
----
+Para trabajar por separado, los comandos `convert_to_yolo.py`, `partition_dataset.py` y `validate_dataset.py` aceptan rutas explícitas; consulta `--help` en cada script.
 
-## 6. Validación de datasets
+El conversor usa las cajas anotadas por cada fuente y normaliza sus coordenadas al formato YOLO de una clase (`traffic_light`). Por tanto, las anotaciones corresponden a instancias de luz/caja de origen y no inventan cajas de cabezal agrupando lentes. La división es reproducible por semilla (70/20/10 por defecto) y produce `data.yaml` y un manifiesto para cada dataset.
 
-```bash
-python validate_dataset.py --input ../datasets/combined/ --output ../datasets/validation_report.txt
-```
+La cantidad final de ejemplos depende de la versión descargada, de las imágenes locales disponibles y de las anotaciones que referencien esas imágenes. No se asumen conteos de catálogo como conteos de salida.
 
----
+## Resultado y etapa siguiente
 
-## 7. Próximos pasos
-
-Una vez completada la Fase 3:
-
-1. **Fase 4:** Entrenamiento del detector YOLO
-2. **Fase 5:** Clasificación de colores
-3. **Fase 10:** Pruebas y validación
-
----
-
-**Fecha de creación:** 2026-09-22
-**Responsable:** Integrante 1 (Visión por Computador)
+La Fase 3 queda lista cuando ambos datasets producen particiones YOLO válidas, independientes y con manifiestos. La configuración `data.yaml` de LISA o Bosch se puede entregar directamente al entrenamiento de la Fase 4. La Fase 2 (prototipo físico) permanece independiente y puede implementarse después.

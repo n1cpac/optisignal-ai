@@ -9,6 +9,8 @@ Universidad Militar Nueva Granada (UMNG)
 
 > **Estado del proyecto:** En fase de desarrollo y estructuración técnica.
 
+> **Documentación del pipeline:** Los archivos `.md` principales forman parte del pipeline. Antes de realizar cambios importantes, consulta la documentación correspondiente. Después de modificar el pipeline, la estructura de datos, los datasets o cualquier proceso importante, actualiza la documentación para reflejar el estado real del proyecto.
+
 ---
 
 ## Descripción
@@ -35,11 +37,12 @@ El desacoplamiento entre el detector visual y la máquina de estados permite ent
 
 ## Datasets de referencia
 
-El entrenamiento, ajuste y evaluación del sistema se fundamentan exclusivamente en tres repositorios abiertos de referencia internacional:
+El entrenamiento y la evaluación se fundamentan exclusivamente en dos repositorios de referencia, que se mantienen independientes:
 
-- **[LISA Traffic Light Dataset](https://cvrr.ucsd.edu/):** ~43,000 imágenes y ~113,000 anotaciones en secuencias diurnas y nocturnas bajo condiciones de tráfico real.
-- **Bosch Small Traffic Lights Dataset (BSTLD):** ~13,400 imágenes de alta resolución anotadas con semáforos de escala muy reducida.
-- **DriveU Traffic Light Dataset (DTLD):** ~230,000 instancias de semáforos que incluyen secuencias continuas con fases de transición amarillas.
+- **[LISA Traffic Light Dataset](https://cvrr.ucsd.edu/):** secuencias diurnas/nocturnas con CSV de anotaciones.
+- **Bosch Small Traffic Lights Dataset (BSTLD):** imágenes con cajas en anotaciones YAML.
+
+El pipeline prioriza `data/datasets/lisa` y `data/datasets/bosch` locales. Si falta alguno, `data/scripts/prepare_datasets.py` usa como fallback la carpeta compartida de [Google Drive](https://drive.google.com/drive/folders/1_Q2jS-ZgivHq8bc2KpVxw58tIeP60f5x?usp=sharing), después convierte, particiona y valida ambos datasets. La estructura original de cada fuente se conserva en `data/datasets/`; los derivados quedan en `data/processed/{lisa,bosch}/` sin fusionar fuentes ni modificar la raw data. Consulta [PHASE_3_DATASETS_GUIDE.md](PHASE_3_DATASETS_GUIDE.md) para instalación y comandos.
 
 ---
 
