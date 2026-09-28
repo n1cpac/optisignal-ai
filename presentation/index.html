@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OptiSignal-AI: Segundo Corte</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="presentation">
+        <!-- Slide 1: Portada -->
+        <section class="slide" id="slide-1">
+            <div class="slide-content">
+                <h1>OptiSignal-AI</h1>
+                <h2>Detección visual de semáforos</h2>
+                <p class="subtitle">Informe de avance — Segundo corte</p>
+                <div class="authors">
+                    <p><strong>Autores:</strong></p>
+                    <ul>
+                        <li>Juan Cerón</li>
+                        <li>Juan Camilo Niño</li>
+                        <li>Nicolás Acevedo</li>
+                    </ul>
+                </div>
+                <p class="institution">Ingeniería en Multimedia<br>Universidad Militar Nueva Granada<br>Bogotá, Colombia</p>
+            </div>
+        </section>
+
+        <!-- Slide 2: Problema y Motivación -->
+        <section class="slide" id="slide-2">
+            <div class="slide-content">
+                <h2>Problema y Motivación</h2>
+                <div class="content-box">
+                    <p><strong>¿Por qué inspeccionar visualmente semáforos desde una cámara?</strong></p>
+                    <ul>
+                        <li>Los sistemas tradicionales detectan fallas eléctricas internas</li>
+                        <li>No verifican si la señal es <em>visible</em> hacia la vía</li>
+                        <li>Lentes obstruidos, sucios o rotos no se detectan</li>
+                        <li>Una inspección externa complementaria es valiosa</li>
+                    </ul>
+                </div>
+                <div class="highlight">
+                    <p>OptiSignal-AI explora si una cámara puede auditar la infraestructura semafórica desde fuera, sin conexión eléctrica al controlador.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 3: Objetivo y Alcance -->
+        <section class="slide" id="slide-3">
+            <div class="slide-content">
+                <h2>Objetivo y Alcance Actual</h2>
+                <div class="two-column">
+                    <div>
+                        <h3>Objetivo a largo plazo</h3>
+                        <ul>
+                            <li>Sistema integral de inspección óptica</li>
+                            <li>Detección de fallas visuales</li>
+                            <li>Validación de secuencias</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>Implementado hasta ahora</h3>
+                        <ul>
+                            <li>✓ Preparación de datos</li>
+                            <li>✓ Detección de semáforos</li>
+                            <li>✗ Clasificación de colores</li>
+                            <li>✗ Lógica de anomalías</li>
+                            <li>✗ Sistema integrado</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 4: Datasets -->
+        <section class="slide" id="slide-4">
+            <div class="slide-content">
+                <h2>Datasets Utilizados</h2>
+                <div class="two-column">
+                    <div class="dataset-box">
+                        <h3>LISA Traffic Light Dataset</h3>
+                        <ul>
+                            <li><strong>36,775</strong> imágenes</li>
+                            <li>Secuencias diurnas y nocturnas</li>
+                            <li>Variaciones de iluminación</li>
+                            <li>Anotaciones CSV</li>
+                        </ul>
+                    </div>
+                    <div class="dataset-box">
+                        <h3>Bosch BSTLD</h3>
+                        <ul>
+                            <li><strong>7,147</strong> imágenes</li>
+                            <li>Semáforos a escala pequeña</li>
+                            <li>Contexto urbano</li>
+                            <li>Anotaciones YAML</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="note"><strong>Nota:</strong> Ambos datasets se mantienen independientes. No se fusionan ni se mezclan las fuentes.</p>
+            </div>
+        </section>
+
+        <!-- Slide 5: Preparación de Datos -->
+        <section class="slide" id="slide-5">
+            <div class="slide-content">
+                <h2>Preparación de Datos</h2>
+                <div class="process-flow">
+                    <div class="step">Raw Data<br><small>CSV / YAML</small></div>
+                    <div class="arrow">→</div>
+                    <div class="step">Conversión<br><small>Formato YOLO</small></div>
+                    <div class="arrow">→</div>
+                    <div class="step">Partición<br><small>70/20/10</small></div>
+                    <div class="arrow">→</div>
+                    <div class="step">Validación<br><small>Integridad</small></div>
+                </div>
+                <table class="data-table">
+                    <tr>
+                        <th>Dataset</th>
+                        <th>Train</th>
+                        <th>Val</th>
+                        <th>Test</th>
+                    </tr>
+                    <tr>
+                        <td>LISA</td>
+                        <td>25,742</td>
+                        <td>7,355</td>
+                        <td>3,678</td>
+                    </tr>
+                    <tr>
+                        <td>Bosch</td>
+                        <td>5,002</td>
+                        <td>1,429</td>
+                        <td>716</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <!-- Slide 6: Método Entrenado -->
+        <section class="slide" id="slide-6">
+            <div class="slide-content">
+                <h2>Método: YOLOv8n</h2>
+                <div class="two-column">
+                    <div>
+                        <h3>Configuración</h3>
+                        <ul>
+                            <li><strong>Modelo:</strong> YOLOv8 Nano</li>
+                            <li><strong>Épocas:</strong> 5</li>
+                            <li><strong>Batch size:</strong> 8</li>
+                            <li><strong>Tamaño imagen:</strong> 640×640</li>
+                            <li><strong>Seed:</strong> 42</li>
+                            <li><strong>Dispositivo:</strong> CUDA</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>Características</h3>
+                        <ul>
+                            <li>Detector de una etapa</li>
+                            <li>Ligero y rápido</li>
+                            <li>Transferencia de aprendizaje</li>
+                            <li>Entrenamiento independiente por dataset</li>
+                            <li>Una clase: <code>traffic_light</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 7: Resultados Cuantitativos -->
+        <section class="slide" id="slide-7">
+            <div class="slide-content">
+                <h2>Resultados de Validación</h2>
+                <p class="note"><strong>⚠ Resultados preliminares:</strong> Evaluación sobre partición <code>val</code> después de 5 épocas. El conjunto <code>test</code> se reserva para evaluación final.</p>
+                <table class="metrics-table">
+                    <tr>
+                        <th>Dataset</th>
+                        <th>Precision</th>
+                        <th>Recall</th>
+                        <th>mAP@50</th>
+                        <th>mAP@50-95</th>
+                    </tr>
+                    <tr>
+                        <td><strong>LISA</strong></td>
+                        <td>0.8947</td>
+                        <td>0.7296</td>
+                        <td>0.7583</td>
+                        <td>0.4572</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Bosch</strong></td>
+                        <td>0.9372</td>
+                        <td>0.7681</td>
+                        <td>0.8252</td>
+                        <td>0.4719</td>
+                    </tr>
+                </table>
+                <div class="metrics-explanation">
+                    <p><strong>Precision:</strong> Proporción de detecciones correctas</p>
+                    <p><strong>Recall:</strong> Proporción de objetos anotados detectados</p>
+                    <p><strong>mAP@50:</strong> Precisión media con IoU ≥ 0.50</p>
+                    <p><strong>mAP@50-95:</strong> Promedio de IoU de 0.50 a 0.95</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 8: Lectura de Predicciones -->
+        <section class="slide" id="slide-8">
+            <div class="slide-content">
+                <h2>Cómo Leer las Predicciones</h2>
+                <div class="prediction-guide">
+                    <div class="guide-item">
+                        <h3>Labels (Anotaciones reales)</h3>
+                        <p>Cajas y etiquetas del dataset original</p>
+                        <p class="code">traffic_light</p>
+                    </div>
+                    <div class="guide-item">
+                        <h3>Pred (Predicciones del modelo)</h3>
+                        <p>Cajas detectadas con confianza</p>
+                        <p class="code">traffic_light 0.95</p>
+                        <p class="explanation">El número decimal (0.95) es la <strong>confianza de detección</strong>, no el color ni el estado del semáforo.</p>
+                    </div>
+                </div>
+                <div class="highlight">
+                    <p>⚠ <strong>Importante:</strong> El modelo solo localiza semáforos. No determina qué color está encendido ni diagnostica fallas.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 9: Ejemplos Visuales LISA -->
+        <section class="slide" id="slide-9">
+            <div class="slide-content">
+                <h2>Predicciones: LISA</h2>
+                <p class="dataset-credit">Visualizaciones del LISA Traffic Light Dataset</p>
+                <div class="image-container">
+                    <p class="image-caption">Mosaico de predicciones en lote de validación. Las cajas verdes muestran detecciones del modelo con confianza.</p>
+                    <p class="note">Nota: Las imágenes de predicciones se encuentran en results/phase_4/lisa/train/val_batch0_pred.jpg</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 10: Ejemplos Visuales Bosch -->
+        <section class="slide" id="slide-10">
+            <div class="slide-content">
+                <h2>Predicciones: Bosch BSTLD</h2>
+                <p class="dataset-credit">Visualizaciones del Bosch Small Traffic Lights Dataset</p>
+                <div class="image-container">
+                    <p class="image-caption">Mosaico de predicciones en lote de validación. Semáforos a escala pequeña detectados por el modelo.</p>
+                    <p class="note">Nota: Las imágenes de predicciones se encuentran en results/phase_4/bosch/train/val_batch0_pred.jpg</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 11: Curvas de Entrenamiento LISA -->
+        <section class="slide" id="slide-11">
+            <div class="slide-content">
+                <h2>Curvas de Entrenamiento: LISA</h2>
+                <p class="note">Tendencias observadas durante 5 épocas de entrenamiento</p>
+                <div class="image-container">
+                    <p class="image-caption">Pérdidas de entrenamiento y validación, y métricas de detección por época. No prueba convergencia ni rendimiento final.</p>
+                    <p class="note">Nota: Las gráficas se encuentran en results/phase_4/lisa/train/results.png</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 12: Curvas de Entrenamiento Bosch -->
+        <section class="slide" id="slide-12">
+            <div class="slide-content">
+                <h2>Curvas de Entrenamiento: Bosch</h2>
+                <p class="note">Tendencias observadas durante 5 épocas de entrenamiento</p>
+                <div class="image-container">
+                    <p class="image-caption">Pérdidas de entrenamiento y validación, y métricas de detección por época. No prueba convergencia ni rendimiento final.</p>
+                    <p class="note">Nota: Las gráficas se encuentran en results/phase_4/bosch/train/results.png</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 13: Implementado vs Pendiente -->
+        <section class="slide" id="slide-13">
+            <div class="slide-content">
+                <h2>Estado de Implementación</h2>
+                <div class="two-column">
+                    <div class="implemented">
+                        <h3>✓ Implementado</h3>
+                        <ul>
+                            <li>Preparación de datos (Fase 3)</li>
+                            <li>Conversión a YOLO</li>
+                            <li>Particiones reproducibles</li>
+                            <li>Entrenamiento YOLOv8n (Fase 4)</li>
+                            <li>Evaluación preliminar</li>
+                            <li>Notebook Jupyter</li>
+                        </ul>
+                    </div>
+                    <div class="pending">
+                        <h3>✗ Pendiente</h3>
+                        <ul>
+                            <li>Clasificación de colores (HSV)</li>
+                            <li>Máquina de estados finitos</li>
+                            <li>Inferencia con cámara</li>
+                            <li>Backend FastAPI</li>
+                            <li>Frontend Angular</li>
+                            <li>Prototipo físico (ESP32)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 14: Aporte Diferencial -->
+        <section class="slide" id="slide-14">
+            <div class="slide-content">
+                <h2>Aporte Diferencial</h2>
+                <div class="content-box">
+                    <h3>Propuesta</h3>
+                    <p>Diferenciar la detección genérica de semáforos de una <strong>inspección óptica externa</strong>:</p>
+                    <ul>
+                        <li>Sin conexión eléctrica al controlador</li>
+                        <li>Verificación de visibilidad desde la vía</li>
+                        <li>Detección de obstrucciones y defectos</li>
+                    </ul>
+                </div>
+                <div class="highlight">
+                    <p><strong>Estado actual:</strong> Hipótesis de desarrollo, no innovación demostrada.</p>
+                    <p>El avance concreto es la ruta de datos local-first y una línea base YOLO independiente por dataset.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 15: Limitaciones -->
+        <section class="slide" id="slide-15">
+            <div class="slide-content">
+                <h2>Limitaciones Identificadas</h2>
+                <ul class="limitations-list">
+                    <li><strong>Experimentos cortos:</strong> Solo 5 épocas, un modelo base</li>
+                    <li><strong>Evaluación incompleta:</strong> Resultados sobre <code>val</code>, no <code>test</code></li>
+                    <li><strong>Sin análisis de errores:</strong> No se estudian fallos sistemáticos</li>
+                    <li><strong>Una clase:</strong> No distingue colores ni estados</li>
+                    <li><strong>Sin datos propios:</strong> Menos de 100 imágenes del equipo</li>
+                    <li><strong>Sin integración:</strong> Componentes desacoplados, no funcionales</li>
+                    <li><strong>Sin validación de fallas:</strong> No se prueban anomalías reales</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Slide 16: Trabajo Siguiente -->
+        <section class="slide" id="slide-16">
+            <div class="slide-content">
+                <h2>Próximos Pasos Necesarios</h2>
+                <ol class="steps-list">
+                    <li><strong>Evaluación final:</strong> Reportar resultados en conjunto <code>test</code></li>
+                    <li><strong>Fase 5:</strong> Implementar clasificación de colores (HSV)</li>
+                    <li><strong>Fase 6:</strong> Máquina de estados finitos con datos de anomalías</li>
+                    <li><strong>Datos propios:</strong> Recopilar y etiquetar imágenes del equipo</li>
+                    <li><strong>Integración:</strong> Conectar detector, clasificador y FSM</li>
+                    <li><strong>Pruebas:</strong> Validar con cámara en vivo y casos de falla</li>
+                    <li><strong>Prototipo físico:</strong> Implementar banco de pruebas con ESP32</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Slide 17: Conclusiones -->
+        <section class="slide" id="slide-17">
+            <div class="slide-content">
+                <h2>Conclusiones</h2>
+                <div class="conclusion-box">
+                    <h3>Estado Actual</h3>
+                    <p>OptiSignal-AI es un <strong>prototipo algorítmico inicial</strong>:</p>
+                    <ul>
+                        <li>✓ Preparación de LISA y Bosch completada y validada</li>
+                        <li>✓ Dos modelos YOLOv8n entrenados independientemente</li>
+                        <li>✓ Métricas preliminares sobre validación</li>
+                        <li>✗ Funcionalidad integral no implementada</li>
+                    </ul>
+                </div>
+                <div class="highlight">
+                    <p><strong>Siguiente decisión:</strong> Completar evaluación en <code>test</code> y desarrollar clasificación de estado con datos verificables.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 18: Preguntas -->
+        <section class="slide" id="slide-18">
+            <div class="slide-content">
+                <h1>¿Preguntas?</h1>
+                <div class="contact-info">
+                    <p><strong>Repositorio:</strong> <code>gitlab.com/nicpac-group/optisignal-ai</code></p>
+                    <p><strong>Documentación:</strong> Fase 3 y Fase 4 en el repositorio</p>
+                    <p><strong>Notebook:</strong> <code>notebooks/phase_4_yolo_training.ipynb</code></p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Controles de navegación -->
+    <div class="controls">
+        <button id="prev-btn" class="nav-btn">← Anterior</button>
+        <span id="slide-counter" class="slide-counter">1 / 18</span>
+        <button id="next-btn" class="nav-btn">Siguiente →</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
