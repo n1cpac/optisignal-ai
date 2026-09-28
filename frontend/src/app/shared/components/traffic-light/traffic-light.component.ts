@@ -1,1 +1,0 @@
-// Traffic light visual component

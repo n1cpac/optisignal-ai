@@ -1,0 +1,339 @@
+/* ==========================================================================
+   Sistema de diseño — basado en DESIGN.md (Baselayer)
+   Solo CSS. Sin sombras, tarjetas cuadradas (0px), 4px en botones/controles.
+   ========================================================================== */
+
+:root {
+  /* Colores */
+  --color-ledger-navy: #09234f;
+  --gradient-ledger-navy: linear-gradient(90deg, #09234f 0%, #384ce3 100%);
+  --color-registry-blue: #384ce3;
+  --color-network-teal: #1888a2;
+  --color-paper-white: #ffffff;
+  --color-ink-black: #000000;
+  --color-carbon: #121012;
+  --color-mint-paper: #eff5f0;
+  --color-sky-paper: #c4f0ff;
+  --color-rule-gray: #e5e5e5;
+  --color-steel-rule: #ced3dc;
+  --color-quiet-gray: #595959;
+
+  /* Señalización (NO está en DESIGN.md: el semáforo necesita rojo/ámbar/verde).
+     Solo se usan en las luces del semáforo y en los marcadores de estado. */
+  --signal-red: #d92d20;
+  --signal-amber: #f5a524;
+  --signal-green: #12a150;
+
+  /* Tipografía: primero la fuente original, luego el sustituto sugerido */
+  --font-season-vf: 'Season VF', 'Cormorant Garamond', Georgia, serif;
+  --font-uncut-sans: 'Uncut Sans', 'DM Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-modern-era-mono: 'Modern Era Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Espaciado (base 4px) */
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-20: 20px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+  --spacing-48: 48px;
+  --spacing-64: 64px;
+
+  /* Layout */
+  --page-max-width: 1312px;
+  --section-gap: 32px;
+  --card-padding: 20px;
+  --element-gap: 12px;
+
+  /* Radios */
+  --radius-cards: 0px;
+  --radius-controls: 4px;
+}
+
+/* ---------- Base ---------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--color-paper-white);
+  color: var(--color-ink-black);
+  font-family: var(--font-uncut-sans);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p, dl, dd { margin: 0; }
+
+a { color: inherit; }
+
+img { display: block; max-width: 100%; }
+
+:focus-visible {
+  outline: 2px solid var(--color-registry-blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* ---------- Layout ---------- */
+
+.contenedor {
+  max-width: var(--page-max-width);
+  margin-inline: auto;
+  padding-inline: var(--spacing-32);
+}
+
+.pagina { padding-block: var(--spacing-32) var(--spacing-64); }
+
+.pagina > * + * { margin-top: var(--section-gap); }
+
+@media (max-width: 640px) {
+  .contenedor { padding-inline: var(--spacing-16); }
+}
+
+/* ---------- Tipografía ---------- */
+
+/* Etiquetas operativas: Modern Era Mono 12px/500 en mayúsculas */
+.etiqueta {
+  font-family: var(--font-modern-era-mono);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--color-quiet-gray);
+}
+
+.texto-secundario { color: var(--color-quiet-gray); }
+
+/* ---------- Botones (radio 4px, texto mono en mayúsculas) ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-8);
+  padding: 14px 20px;
+  border: 1px solid var(--color-steel-rule);
+  border-radius: var(--radius-controls);
+  background: transparent;
+  color: var(--color-ink-black);
+  font-family: var(--font-modern-era-mono);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.15;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 120ms, border-color 120ms, color 120ms;
+}
+
+.btn:hover { border-color: var(--color-ink-black); background: var(--color-mint-paper); }
+
+.btn--primario {
+  border-color: var(--color-ledger-navy);
+  background: var(--color-ledger-navy);
+  color: var(--color-paper-white);
+}
+.btn--primario:hover {
+  border-color: var(--color-carbon);
+  background: var(--color-carbon);
+}
+
+.btn--sm { padding: 8px 12px; font-size: 14px; }
+
+/* ---------- Campos de formulario ---------- */
+
+.campo { display: flex; flex-direction: column; gap: var(--spacing-8); min-width: 200px; flex: 1 1 200px; }
+
+.campo input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--color-steel-rule);
+  border-radius: var(--radius-controls);
+  background: var(--color-paper-white);
+  color: var(--color-ink-black);
+  font-family: var(--font-uncut-sans);
+  font-size: 16px;
+  line-height: 1.25;
+  height: 48px; /* mismo alto para texto y fecha (el control nativo de fecha es más alto) */
+}
+
+.campo input:hover { border-color: var(--color-quiet-gray); }
+.campo input:focus { border-color: var(--color-registry-blue); }
+
+/* ---------- Tiles de métricas (mosaico con divisiones de 1px) ---------- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1px;
+  background: var(--color-rule-gray);
+  border: 1px solid var(--color-rule-gray);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--spacing-24);
+  min-height: 148px;
+  padding: var(--card-padding);
+  background: var(--color-mint-paper);
+}
+
+.tile__valor {
+  font-family: var(--font-season-vf);
+  font-size: 56px;
+  font-weight: 515;
+  line-height: 1.02;
+  letter-spacing: -0.005em;
+  font-variant-numeric: lining-nums;
+}
+
+.tile__valor small { font-size: 0.5em; margin-left: 2px; }
+
+/* Valores textuales (p. ej. "Conectada") usan la sans, no la serif de display */
+.tile__valor--texto {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-12);
+  font-family: var(--font-uncut-sans);
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+/* Barra de uso: plana, 4px de alto */
+.barra { height: 4px; background: var(--color-steel-rule); }
+.barra__relleno { display: block; height: 100%; background: var(--color-registry-blue); transition: width 300ms; }
+
+/* ---------- Marcador de estado (cuadrado 8px, no es una insignia) ---------- */
+
+.marca {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  background: var(--color-steel-rule);
+}
+.marca--ok { background: var(--signal-green); }
+.marca--aviso { background: var(--signal-amber); }
+.marca--fallo { background: var(--signal-red); }
+
+/* ---------- Consola de verificación (campo Registry Blue) ---------- */
+
+.consola {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--spacing-20);
+  padding: var(--card-padding);
+  background: var(--color-registry-blue);
+  border: 1px solid var(--color-sky-paper);
+  border-radius: var(--radius-controls);
+}
+
+.consola--solapada { margin-top: -80px; }
+
+.consola__filas { display: flex; flex-direction: column; gap: var(--element-gap); }
+
+.consola__fila {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-16);
+  padding: var(--spacing-12) var(--spacing-16);
+  background: var(--color-paper-white);
+  color: var(--color-ink-black);
+}
+
+.consola__fila dd {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .consola { grid-template-columns: 1fr; justify-items: stretch; }
+  .consola__fila { flex-direction: column; align-items: flex-start; }
+  .consola__fila dd { text-align: left; }
+}
+
+/* ---------- Filtros y lista de alertas ---------- */
+
+.barra-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--element-gap);
+  padding: var(--card-padding);
+  border: 1px solid var(--color-rule-gray);
+  background: var(--color-paper-white);
+}
+
+.barra-filtros__acciones { display: flex; gap: var(--element-gap); }
+
+.tabla-alertas { border: 1px solid var(--color-rule-gray); background: var(--color-paper-white); }
+
+/* Misma retícula para la fila de encabezados y para cada alerta */
+.fila-alerta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px 150px;
+  align-items: center;
+  gap: var(--spacing-16);
+  padding: var(--spacing-16) var(--card-padding);
+}
+
+.fila-alerta--encabezado { background: var(--color-mint-paper); padding-block: var(--spacing-12); }
+
+.tabla-alertas > * + * { border-top: 1px solid var(--color-rule-gray); }
+
+.vacio { padding: var(--spacing-48) var(--card-padding); text-align: center; }
+.vacio p:first-child { font-size: 20px; font-weight: 500; letter-spacing: -0.01em; }
+.vacio p + p { margin-top: var(--spacing-4); color: var(--color-quiet-gray); }
+
+@media (max-width: 720px) {
+  .fila-alerta { grid-template-columns: 1fr; gap: var(--spacing-8); }
+  .fila-alerta--encabezado { display: none; }
+}
+
+/* ---------- Mapa (Leaflet) ---------- */
+
+.marco-mapa { border: 1px solid var(--color-steel-rule); }
+
+/* Mapa base en escala de grises: la malla azul y las alertas rojas destacan */
+.leaflet-tile-pane { filter: grayscale(1) contrast(0.92) brightness(1.04); }
+
+.leaflet-container { font-family: var(--font-uncut-sans); background: var(--color-mint-paper); }
+
+.leaflet-bar, .leaflet-control-layers {
+  box-shadow: none !important;
+  border: 1px solid var(--color-steel-rule) !important;
+  border-radius: var(--radius-controls) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 0;
+  box-shadow: none;
+  border: 1px solid var(--color-steel-rule);
+}
+.leaflet-popup-tip { box-shadow: none; }
+.leaflet-popup-content { margin: var(--spacing-16); }
+
+.popup-alerta { display: flex; flex-direction: column; align-items: flex-start; gap: var(--spacing-8); }
+.popup-alerta__titulo { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
+.popup-alerta__fecha { color: var(--color-quiet-gray); font-size: 13px; }
