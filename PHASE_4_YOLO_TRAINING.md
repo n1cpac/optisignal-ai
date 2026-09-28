@@ -61,12 +61,13 @@ El notebook implementa el flujo completo en 9 secciones:
 
 ### 1. Instalación de dependencias
 - Detecta entorno (local vs Colab)
-- Instala PyTorch, Ultralytics YOLO, OpenCV, etc.
+- Instala Ultralytics YOLO, OpenCV y dependencias de visión.
+- En local, PyTorch CUDA se instala por separado desde el mismo Python seleccionado como kernel; el notebook no lo reemplaza por una build CPU.
 
 ### 2. Detección de hardware
-- Identifica GPU NVIDIA y CUDA
-- Fallback automático a CPU si no hay GPU
-- Muestra información del sistema
+- Identifica GPU NVIDIA y CUDA y ejecuta una operación breve de prueba.
+- Detiene el flujo si CUDA no está disponible; no continúa silenciosamente por CPU.
+- Muestra información del sistema y VRAM.
 
 ### 3. Configuración de parámetros
 
@@ -75,7 +76,7 @@ El notebook implementa el flujo completo en 9 secciones:
 ```python
 YOLO_MODEL = 'yolov8n'      # nano para inferencia rápida
 EPOCHS = 5                  # Cambiar a 50-100 para entrenamiento real
-BATCH_SIZE = 16             # Reducir si hay problemas de memoria
+BATCH_SIZE = 8              # Punto de partida para RTX 4060 Ti de 8 GB
 IMG_SIZE = 640              # Tamaño de imagen
 PATIENCE = 10               # Early stopping
 SEED = 42                   # Reproducibilidad
@@ -137,27 +138,31 @@ DATASETS = ['lisa', 'bosch'] # Entrenar ambos independientemente
    cd optisignal-ai
    ```
 
-2. **Instalar dependencias (opcional, el notebook lo hace):**
-   ```bash
-   pip install -r data/scripts/requirements_data.txt
+2. **Identificar el Python del kernel** ejecutando `import sys; print(sys.executable)` en una celda. Usa esa ruta en los comandos de instalación.
+
+3. **Instalar PyTorch con CUDA desde la terminal de VS Code** (PowerShell; reemplaza la ruta por `sys.executable`):
+   ```powershell
+   & "C:\ruta\al\python.exe" -m pip install --force-reinstall torch==2.14.0 torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cu130
+   ```
+   El entorno del kernel usa PyTorch 2.14.0. Para esa versión, PyTorch publica wheels CUDA 13.0 y TorchVision 0.29.0 compatibles con Python 3.12 en Windows; el driver instalado reporta CUDA 13.1. Los wheels precompilados no requieren instalar aparte el CUDA Toolkit. Si CUDA sigue sin inicializar, verifica el driver y el comando recomendado en [el selector oficial de PyTorch](https://pytorch.org/get-started/locally/).
+
+4. **Instalar las dependencias de visión** en el mismo entorno o ejecutar la celda 1 del notebook:
+   ```powershell
+   & "C:\ruta\al\python.exe" -m pip install "ultralytics>=8.0.0" "opencv-python>=4.8.0" "numpy>=1.24.0" "pandas>=2.0.0" "matplotlib>=3.7.0" "Pillow>=10.0.0" "psutil>=5.9.0"
    ```
 
-3. **Iniciar Jupyter:**
+5. **Reiniciar el kernel** y ejecutar primero la celda de detección. Debe mostrar `CUDA disponible: True` y `NVIDIA GeForce RTX 4060 Ti` antes de continuar.
+
+6. **Iniciar Jupyter:**
    ```bash
    jupyter notebook
    ```
 
-4. **Abrir el notebook:**
+7. **Abrir el notebook:**
    - Navegar a `notebooks/phase_4_yolo_training.ipynb`
    - Hacer clic para abrir
 
-5. **Ejecutar celdas en orden:**
-   - Celda 1-2: Instalar dependencias
-   - Celda 3: Detectar hardware
-   - Celda 4: Configurar parámetros (editar si es necesario)
-   - Celda 5: Validar datos
-   - Celda 6: **Entrenar** (⚠ Toma tiempo según GPU/CPU)
-   - Celda 7-9: Evaluar y visualizar
+8. **Ejecutar celdas en orden.** Si CUDA no está disponible, la celda de hardware detiene el notebook antes del entrenamiento. Comprueba que VS Code esté usando el Python donde instalaste PyTorch CUDA.
 
 ### Configuración recomendada para hardware local
 
@@ -165,13 +170,13 @@ DATASETS = ['lisa', 'bosch'] # Entrenar ambos independientemente
 ```python
 YOLO_MODEL = 'yolov8n'  # nano
 EPOCHS = 50             # Entrenamiento completo
-BATCH_SIZE = 16         # Cabe en VRAM
+BATCH_SIZE = 8          # Recomendado para la variante de 8 GB
 IMG_SIZE = 640
 ```
 
 **Si hay problemas de memoria:**
 ```python
-BATCH_SIZE = 8          # Reducir batch
+BATCH_SIZE = 4          # Reducir batch
 IMG_SIZE = 416          # Reducir tamaño de imagen
 ```
 
@@ -325,7 +330,7 @@ Los directorios `models/` y `results/` están en `.gitignore` porque contienen a
 ## Troubleshooting
 
 ### Error: "CUDA out of memory"
-- Reducir `BATCH_SIZE` (16 → 8 → 4)
+- Reducir `BATCH_SIZE` (8 → 4 → 2)
 - Reducir `IMG_SIZE` (640 → 416 → 320)
 - Usar CPU en lugar de GPU
 

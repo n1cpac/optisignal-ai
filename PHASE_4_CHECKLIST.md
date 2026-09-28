@@ -10,7 +10,7 @@ Implementar un flujo reproducible de entrenamiento y evaluación del detector YO
 ### Notebook Jupyter
 - [x] Crear `notebooks/phase_4_yolo_training.ipynb`
 - [x] Sección 1: Instalación de dependencias
-- [x] Sección 2: Detección de hardware (GPU/CPU)
+- [x] Sección 2: Verificación explícita de CUDA y prueba breve de GPU; no continuar silenciosamente por CPU
 - [x] Sección 3: Configuración de parámetros editables
 - [x] Sección 4: Validación de estructura de datos
 - [x] Sección 5: Entrenamiento independiente (LISA y Bosch)
@@ -33,7 +33,7 @@ Implementar un flujo reproducible de entrenamiento y evaluación del detector YO
 ### Validaciones
 - [x] Notebook es JSON válido
 - [x] Celdas ejecutables en orden
-- [x] Detección automática de GPU/CPU
+- [x] Detección estricta de CUDA implementada
 - [x] Rutas reproducibles (local y Colab)
 - [x] Configuración sin modificar código
 - [x] Entrenamiento limitado (EPOCHS=5 por defecto)
@@ -48,7 +48,7 @@ Implementar un flujo reproducible de entrenamiento y evaluación del detector YO
 |---|---|---|
 | Modelo YOLO | yolov8n | Nano para inferencia rápida |
 | Épocas | 5 (default) | Cambiar a 50-100 para entrenamiento real |
-| Batch size | 16 | Reducir si hay problemas de memoria |
+| Batch size | 8 | Punto de partida para RTX 4060 Ti de 8 GB |
 | Tamaño imagen | 640x640 | Estándar YOLO |
 | Early stopping | 10 épocas | Paciencia para detener si no mejora |
 | Seed | 42 | Reproducibilidad |
@@ -114,3 +114,5 @@ jupyter notebook notebooks/phase_4_yolo_training.ipynb
 **Fecha de creación:** 2026-09-28
 **Responsable:** Integrante 1 (Visión por Computador)
 **Estado:** ✅ Completado
+
+**Nota de entorno local:** PyTorch debe instalarse con la build CUDA en el mismo Python que usa el kernel de VS Code. La comprobación real de `torch.cuda.is_available()` debe confirmarse en ese kernel antes del entrenamiento; el notebook ahora detiene el flujo si CUDA no está disponible.
