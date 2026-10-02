@@ -1009,9 +1009,12 @@
       /* -----------------------------------------------------------
          CONFETI MONOCROMÁTICO (CANVAS NATIVO)
          ----------------------------------------------------------- */
+      let confettiFrame = null;
+
       function launchMonochromeConfetti() {
         const canvas = document.getElementById('confettiCanvas');
-        if (!canvas) return;
+        if (!canvas || reduceMotion) return;
+        cancelAnimationFrame(confettiFrame);
         const ctx = canvas.getContext('2d');
         canvas.classList.remove('hidden');
 
