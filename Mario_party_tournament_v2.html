@@ -255,8 +255,12 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
+  <!-- NOTIFICACIONES -->
+  <div id="toastContainer" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-2 pointer-events-none" aria-live="polite"></div>
+
   <!-- OVERLAY DE EXPECTATIVA CON CUENTA REGRESIVA Y CONFETI -->
-  <div id="expectationOverlay" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md hidden flex-col items-center justify-center p-6 text-center select-none">
+  <div id="expectationOverlay" role="dialog" aria-modal="true" aria-labelledby="expTitle" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md hidden flex-col items-center justify-center p-6 text-center select-none">
+    <button id="btnSkipExpectation" type="button" class="absolute top-5 right-5 text-xs text-iron hover:text-white px-4 py-2 rounded-pill hairline-border hover:border-white/40 transition">Saltar (Esc)</button>
     <div class="max-w-md w-full flex flex-col items-center space-y-6">
       <div id="expCategory" class="text-xs uppercase tracking-widest text-iron">PROCESO EN CURSO</div>
       <h3 id="expTitle" class="text-21px md:text-26px tracking-heading font-normal text-white">Determinando resultado</h3>
