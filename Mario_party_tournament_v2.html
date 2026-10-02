@@ -843,6 +843,33 @@
       'use strict';
 
       const STORAGE_KEY = 'MP_JAMBOREE_TOURNAMENT_V2';
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // Escapa texto antes de insertarlo con innerHTML (evita XSS y nombres con comillas rotos)
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      }
+
+      function clampInt(value, min, max) {
+        const n = parseInt(value, 10);
+        return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : 0;
+      }
+
+      // Notificación no bloqueante (reemplaza alert)
+      function toast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        const el = document.createElement('div');
+        el.className = 'toast' + (type === 'error' ? ' toast-error' : '');
+        el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        el.textContent = message;
+        container.appendChild(el);
+        requestAnimationFrame(() => el.classList.add('toast-show'));
+        setTimeout(() => {
+          el.classList.remove('toast-show');
+          setTimeout(() => el.remove(), 300);
+        }, 3200);
+      }
 
       // 11 Personajes oficiales de Mario Party Jamboree
       const DEFAULT_PLAYERS = [
