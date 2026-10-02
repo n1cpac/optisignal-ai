@@ -938,8 +938,14 @@
          ----------------------------------------------------------- */
       let expInterval = null;
       let shuffleInterval = null;
+      let expBusy = false;
+      let expFinish = null;
 
       function triggerExpectation({ category = "PROCESO", title = "Procesando", shuffleNames = [], duration = 5, onComplete }) {
+        if (expBusy) return;
+        expBusy = true;
+        let expDone = false;
+        document.body.style.overflow = 'hidden';
         const overlay = document.getElementById('expectationOverlay');
         const catElem = document.getElementById('expCategory');
         const titleElem = document.getElementById('expTitle');
