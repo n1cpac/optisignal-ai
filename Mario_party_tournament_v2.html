@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-black text-white antialiased">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mario Party Jamboree — Torneo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            carbon: '#000000',
+            bone: '#ffffff',
+            ash: '#e5e7eb',
+            smoke: '#bfbfbf',
+            iron: '#999999'
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif']
+          },
+          borderRadius: {
+            'card': '17.6px',
+            'pill': '9999px'
+          },
+          letterSpacing: {
+            'display-lg': '-3.18px',
+            'display': '-2.35px',
+            'heading-lg': '-1.16px',
+            'heading': '-0.78px',
+            'heading-sm': '-0.61px',
+            'body-sm': '-0.3px',
+            'caption': '-0.26px'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --color-carbon-canvas: #000000;
+      --color-bone-white: #ffffff;
+      --color-ash-veil: #e5e7eb;
+      --color-smoke: #bfbfbf;
+      --color-iron-gray: #999999;
+      --radius-card: 17.6px;
+      --radius-pill: 9999px;
+    }
+
+    body {
+      background-color: var(--color-carbon-canvas);
+      color: var(--color-bone-white);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-feature-settings: "ss08" on;
+    }
+
+    .hairline-border {
+      border: 1px solid rgba(229, 231, 235, 0.14);
+    }
+
+    .hairline-border-focus:focus-within {
+      border-color: rgba(255, 255, 255, 0.45);
+    }
+
+    .hairline-divider {
+      border-color: rgba(229, 231, 235, 0.12);
+    }
+
+    .pill-btn {
+      border-radius: var(--radius-pill);
+      padding: 14px 28px;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.3px;
+      transition: all 0.18s ease-in-out;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .pill-btn-primary {
+      background-color: var(--color-bone-white);
+      color: var(--color-carbon-canvas);
+    }
+
+    .pill-btn-primary:hover:not(:disabled) {
+      opacity: 0.92;
+      transform: translateY(-1px);
+    }
+
+    .pill-btn-primary:disabled {
+      opacity: 0.28;
+      cursor: not-allowed;
+    }
+
+    .pill-btn-secondary {
+      background-color: transparent;
+      color: var(--color-bone-white);
+      border: 1px solid rgba(229, 231, 235, 0.24);
+    }
+
+    .pill-btn-secondary:hover:not(:disabled) {
+      border-color: rgba(255, 255, 255, 0.65);
+      background-color: rgba(255, 255, 255, 0.04);
+    }
+
+    .pill-btn-secondary:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+    }
+
+    .tag-pill {
+      border-radius: var(--radius-pill);
+      padding: 3px 10px;
+      font-size: 12px;
+      letter-spacing: -0.2px;
+      font-weight: 450;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .tag-pill-subtle {
+      border: 1px solid rgba(229, 231, 235, 0.18);
+      color: var(--color-ash-veil);
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    .tag-pill-winner {
+      background-color: var(--color-bone-white);
+      color: var(--color-carbon-canvas);
+      font-weight: 500;
+    }
+
+    .tag-pill-accent {
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .card-surface {
+      background-color: var(--color-carbon-canvas);
+      border-radius: var(--radius-card);
+      border: 1px solid rgba(229, 231, 235, 0.12);
+      padding: 26px;
+    }
+
+    /* Modal countdown pulse */
+    @keyframes countPulse {
+      0% {
+        transform: scale(0.85);
+        opacity: 0;
+      }
+      50% {
+        transform: scale(1.05);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .animate-count-pulse {
+      animation: countPulse 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Simple custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #000000;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #262626;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #404040;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- OVERLAY DE EXPECTATIVA CON CUENTA REGRESIVA Y CONFETI -->
+  <div id="expectationOverlay" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md hidden flex-col items-center justify-center p-6 text-center select-none">
+    <div class="max-w-md w-full flex flex-col items-center space-y-6">
+      <div id="expCategory" class="text-xs uppercase tracking-widest text-iron">PROCESO EN CURSO</div>
+      <h3 id="expTitle" class="text-21px md:text-26px tracking-heading font-normal text-white">Determinando resultado</h3>
+      
+      <!-- Visor de nombres / candidatos aleatorios rotando -->
+      <div class="w-full h-14 hairline-border rounded-pill flex items-center justify-center px-6 bg-black/50 overflow-hidden">
+        <span id="expShuffleText" class="text-smoke text-sm md:text-base font-mono tracking-body-sm truncate">...</span>
+      </div>
+
+      <!-- Número monumental de cuenta regresiva -->
+      <div class="relative py-4">
+        <div id="expCountdown" class="text-7xl md:text-8xl font-normal text-white tracking-display-lg tabular-nums animate-count-pulse">5</div>
+      </div>
+
+      <p id="expSubtitle" class="text-iron text-xs tracking-caption max-w-xs">Procesando registros de la sesión...</p>
+    </div>
+  </div>
+
+  <!-- CANVAS PARA CONFETI MONOCROMÁTICO -->
+  <canvas id="confettiCanvas" class="fixed inset-0 z-40 pointer-events-none w-full h-full hidden"></canvas>
+
+  <!-- NAVEGACIÓN SUPERIOR MONOCROMÁTICA -->
+  <header class="w-full border-b hairline-divider bg-black/80 sticky top-0 z-30 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-6 h-18 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <!-- Brand Mark estilo Analogue -->
+        <div class="w-8 h-8 rounded border border-white/20 flex items-center justify-center text-xs font-semibold text-white tracking-widest">
+          MPJ
+        </div>
+        <div>
+          <div class="text-xs text-smoke tracking-caption uppercase">Gestor de Torneo</div>
+          <div class="text-sm font-normal text-white tracking-body-sm">Mario Party Jamboree</div>
+        </div>
+      </div>
+
+      <!-- Resumen de estado de jugadores y reinicio -->
+      <div class="flex items-center gap-3">
+        <div id="navPlayerCountBadge" class="tag-pill tag-pill-subtle text-xs">
+          0 / 11 Jugadores
+        </div>
+        <button id="btnResetTournament" class="text-xs text-iron hover:text-white px-3 py-1.5 rounded-pill hairline-border hover:border-white/40 transition">
+          Reiniciar
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-6 py-12 space-y-16">
+
+    <!-- SECCIÓN 01: REGISTRO DE JUGADORES -->
+    <section id="secRegistration" class="space-y-6">
+      <div class="space-y-1">
+        <span class="text-iron text-xs uppercase tracking-widest">Fase 01</span>
+        <h2 class="text-26px tracking-heading font-normal text-white">Registro de jugadores</h2>
+        <p class="text-smoke text-sm tracking-body-sm">Se requiere inscribir exactamente 11 jugadores para habilitar el sorteo de grupos.</p>
+      </div>
+
+      <div class="card-surface space-y-6">
+        <form id="playerForm" class="flex flex-col sm:flex-row gap-3">
+          <div class="flex-1">
+            <input 
+              type="text" 
+              id="playerInput" 
+              placeholder="Nombre o username del participante" 
+              autocomplete="off"
+              maxlength="24"
+              class="w-full bg-black hairline-border rounded-pill px-5 py-3.5 text-sm text-white placeholder-iron focus:outline-none focus:border-white/50 transition tracking-body-sm"
+            >
+          </div>
+          <button type="submit" id="btnAddPlayer" class="pill-btn pill-btn-primary whitespace-nowrap">
+            Agregar jugador
+          </button>
+          <button type="button" id="btnLoadDefaults" class="pill-btn pill-btn-secondary whitespace-nowrap text-xs">
+            Cargar 11 oficiales
+          </button>
+        </form>
+
+        <!-- Lista de chips de jugadores agregados -->
+        <div class="space-y-3 pt-2 border-t hairline-divider">
+          <div class="flex items-center justify-between text-xs text-smoke">
+            <span>Participantes registrados (<span id="countDisplay">0</span>/11)</span>
+            <span id="regStatusHelp" class="text-iron">Faltan 11 jugadores</span>
+          </div>
+          
+          <div id="playerChipsContainer" class="flex flex-wrap gap-2 min-h-12 items-center">
+            <div id="noPlayersPlaceholder" class="text-xs text-iron italic py-2">
+              No hay jugadores inscritos en este momento.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 02: SORTEO DE GRUPOS -->
+    <section id="secGroups" class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div class="space-y-1">
+          <span class="text-iron text-xs uppercase tracking-widest">Fase 02</span>
+          <h2 class="text-26px tracking-heading font-normal text-white">Sorteo y conformación de grupos</h2>
+          <p class="text-smoke text-sm tracking-body-sm">Distribución aleatoria en Grupo 1 (4), Grupo 2 (4) y Grupo 3 (3).</p>
+        </div>
+        <button id="btnDrawGroups" class="pill-btn pill-btn-primary" disabled>
+          Iniciar sorteo de grupos
+        </button>
+      </div>
+
+      <!-- Contenedor de Grupos -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <!-- Grupo 1 -->
+        <div class="card-surface space-y-4">
+          <div class="flex items-center justify-between border-b hairline-divider pb-3">
+            <div>
+              <span class="text-xs text-iron uppercase tracking-widest">Partida 1</span>
+              <h3 class="text-19px tracking-heading-sm font-normal text-white">Grupo 1</h3>
+            </div>
+            <span class="tag-pill tag-pill-subtle">4 Jugadores</span>
+          </div>
+          <ul id="group1List" class="space-y-2 text-sm text-smoke">
+            <li class="text-iron text-xs py-1">Sin sortear</li>
+          </ul>
+        </div>
+
+        <!-- Grupo 2 -->
+        <div class="card-surface space-y-4">
+          <div class="flex items-center justify-between border-b hairline-divider pb-3">
+            <div>
+              <span class="text-xs text-iron uppercase tracking-widest">Partida 2</span>
+              <h3 class="text-19px tracking-heading-sm font-normal text-white">Grupo 2</h3>
+            </div>
+            <span class="tag-pill tag-pill-subtle">4 Jugadores</span>
+          </div>
+          <ul id="group2List" class="space-y-2 text-sm text-smoke">
+            <li class="text-iron text-xs py-1">Sin sortear</li>
+          </ul>
+        </div>
+
+        <!-- Grupo 3 -->
+        <div class="card-surface space-y-4">
+          <div class="flex items-center justify-between border-b hairline-divider pb-3">
+            <div>
+              <span class="text-xs text-iron uppercase tracking-widest">Partida 3</span>
+              <h3 class="text-19px tracking-heading-sm font-normal text-white">Grupo 3</h3>
+            </div>
+            <span class="tag-pill tag-pill-subtle">3 Jugadores base</span>
+          </div>
+          <ul id="group3List" class="space-y-2 text-sm text-smoke">
+            <li class="text-iron text-xs py-1">Sin sortear</li>
+          </ul>
+          <div class="pt-2 border-t hairline-divider">
+            <div class="text-xs text-iron flex items-center justify-between">
+              <span>Cuarto cupo:</span>
+              <span id="group3ExtraSlotBadge" class="text-smoke">Pendiente selección</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 03: REGISTRO DE PARTIDAS INICIALES 1 Y 2 -->
+    <section id="secMatches1and2" class="space-y-6">
+      <div class="space-y-1">
+        <span class="text-iron text-xs uppercase tracking-widest">Fase 03</span>
+        <h2 class="text-26px tracking-heading font-normal text-white">Partidas iniciales 1 y 2</h2>
+        <p class="text-smoke text-sm tracking-body-sm">Registra las posiciones finales, estrellas y monedas de cada partida.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Formulario Partida 1 -->
+        <div class="card-surface space-y-5" id="cardMatch1">
+          <div class="flex items-center justify-between border-b hairline-divider pb-3">
+            <div>
+              <span class="text-xs text-iron uppercase tracking-widest">Grupo 1</span>
+              <h3 class="text-19px tracking-heading-sm font-normal text-white">Partida 1</h3>
+            </div>
+            <span id="badgeMatch1Status" class="tag-pill tag-pill-subtle">Pendiente</span>
+          </div>
+
+          <form id="formMatch1" class="space-y-3">
+            <div id="match1InputsContainer" class="space-y-3">
+              <p class="text-xs text-iron italic py-4 text-center">Debes realizar el sorteo de grupos primero.</p>
+            </div>
+            <div class="pt-3 flex gap-2">
+              <button type="submit" id="btnSaveMatch1" class="pill-btn pill-btn-primary w-full" disabled>
+                Guardar partida 1
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Formulario Partida 2 -->
+        <div class="card-surface space-y-5" id="cardMatch2">
+          <div class="flex items-center justify-between border-b hairline-divider pb-3">
+            <div>
+              <span class="text-xs text-iron uppercase tracking-widest">Grupo 2</span>
+              <h3 class="text-19px tracking-heading-sm font-normal text-white">Partida 2</h3>
+            </div>
+            <span id="badgeMatch2Status" class="tag-pill tag-pill-subtle">Pendiente</span>
+          </div>
+
+          <form id="formMatch2" class="space-y-3">
+            <div id="match2InputsContainer" class="space-y-3">
+              <p class="text-xs text-iron italic py-4 text-center">Debes realizar el sorteo de grupos primero.</p>
+            </div>
+            <div class="pt-3 flex gap-2">
+              <button type="submit" id="btnSaveMatch2" class="pill-btn pill-btn-primary w-full" disabled>
+                Guardar partida 2
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 04: SELECCIÓN DEL CUARTO PARTICIPANTE PARA PARTIDA 3 (CON ELECCIÓN Y REVELACIÓN POSTERIOR) -->
+    <section id="secExtraPlayerSelection" class="space-y-6">
+      <div class="space-y-1">
+        <span class="text-iron text-xs uppercase tracking-widest">Fase 04</span>
+        <h2 class="text-26px tracking-heading font-normal text-white">Cuarto participante para la Partida 3</h2>
+        <p class="text-smoke text-sm tracking-body-sm">Selecciona primero la modalidad deseada para completar el Grupo 3. El resultado se determinará tras la confirmación.</p>
+      </div>
+
+      <div class="card-surface space-y-6">
+        <!-- Selector inicial de modalidad (Oculta resultados previos) -->
+        <div id="extraMethodSelectorBlock" class="space-y-4">
+          <label class="text-xs text-iron uppercase tracking-widest block">Seleccionar modalidad de definición</label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <!-- Opción A -->
+            <label class="hairline-border rounded-card p-4 flex flex-col justify-between cursor-pointer hover:border-white/40 transition has-[:checked]:border-white has-[:checked]:bg-white/5">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="text-sm font-medium text-white tracking-body-sm">Opción A: Sorteo aleatorio</div>
+                  <div class="text-xs text-iron mt-1">Sorteo entre los 8 jugadores de las Partidas 1 y 2.</div>
+                </div>
+                <input type="radio" name="fourthPlayerMethod" value="random" class="mt-1 accent-white" checked>
+              </div>
+            </label>
+
+            <!-- Opción B -->
+            <label class="hairline-border rounded-card p-4 flex flex-col justify-between cursor-pointer hover:border-white/40 transition has-[:checked]:border-white has-[:checked]:bg-white/5">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="text-sm font-medium text-white tracking-body-sm">Opción B: Mejor tercer lugar</div>
+                  <div class="text-xs text-iron mt-1">Evaluación comparativa técnica entre los 3.º puestos de Partida 1 y 2.</div>
+                </div>
+                <input type="radio" name="fourthPlayerMethod" value="best_third" class="mt-1 accent-white">
+              </div>
+            </label>
+
+          </div>
+
+          <div class="flex items-center justify-between pt-2">
+            <p id="extraMethodHelpText" class="text-xs text-iron">Se requiere haber completado las Partidas 1 y 2 para ejecutar la selección.</p>
+            <button id="btnExecuteFourthSelection" class="pill-btn pill-btn-primary" disabled>
+              Determinar cuarto participante
+            </button>
+          </div>
+        </div>
+
+        <!-- Bloque contenedor de resultado de la selección (Oculto hasta que se ejecuta el proceso) -->
+        <div id="extraSelectionResultBox" class="hidden pt-6 border-t hairline-divider space-y-6">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-iron uppercase tracking-widest">Resultado de la selección</span>
+            <span id="badgeMethodUsed" class="tag-pill tag-pill-subtle">Modalidad</span>
+          </div>
+
+          <!-- Tarjeta del seleccionado -->
+          <div class="p-5 hairline-border rounded-card bg-white/[0.02] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div class="text-xs text-iron">Jugador clasificado para la Partida 3</div>
+              <div id="extraPlayerNameDisplay" class="text-21px font-normal tracking-heading-sm text-white mt-0.5">—</div>
+              <div id="extraPlayerReasonDisplay" class="text-xs text-smoke mt-1">Criterio aplicado</div>
+            </div>
+            <button id="btnRechooseFourth" class="text-xs text-iron hover:text-white px-4 py-2 hairline-border rounded-pill hover:border-white/50 transition">
+              Cambiar selección
+            </button>
+          </div>
+
+          <!-- Detalle comparativo visible solo si se seleccionó la Opción B -->
+          <div id="comparisonDetailBlock" class="hidden space-y-3">
+            <div class="text-xs text-iron uppercase tracking-widest">Comparativa técnica de terceros lugares</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Candidato P1 -->
+              <div id="cand1Card" class="hairline-border rounded-card p-4 space-y-2">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs text-iron">Partida 1 (3.er lugar)</span>
+                  <span id="cand1Badge" class="tag-pill tag-pill-subtle text-xs">—</span>
+                </div>
+                <div id="cand1Name" class="text-base text-white font-medium">—</div>
+                <div class="flex gap-4 text-xs text-smoke pt-1">
+                  <span>⭐ <span id="cand1Stars" class="text-white">0</span> estrellas</span>
+                  <span>🪙 <span id="cand1Coins" class="text-white">0</span> monedas</span>
+                </div>
+              </div>
+
+              <!-- Candidato P2 -->
+              <div id="cand2Card" class="hairline-border rounded-card p-4 space-y-2">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs text-iron">Partida 2 (3.er lugar)</span>
+                  <span id="cand2Badge" class="tag-pill tag-pill-subtle text-xs">—</span>
+                </div>
+                <div id="cand2Name" class="text-base text-white font-medium">—</div>
+                <div class="flex gap-4 text-xs text-smoke pt-1">
+                  <span>⭐ <span id="cand2Stars" class="text-white">0</span> estrellas</span>
+                  <span>🪙 <span id="cand2Coins" class="text-white">0</span> monedas</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 05: REGISTRO DE LA PARTIDA 3 -->
+    <section id="secMatch3" class="space-y-6">
+      <div class="space-y-1">
+        <span class="text-iron text-xs uppercase tracking-widest">Fase 05</span>
+        <h2 class="text-26px tracking-heading font-normal text-white">Partida 3 (Grupo 3 + Cuarto jugador)</h2>
+        <p class="text-smoke text-sm tracking-body-sm">Disputada entre los 3 integrantes base del Grupo 3 y el jugador seleccionado en la fase anterior.</p>
+      </div>
+
+      <div class="card-surface space-y-5">
+        <div class="flex items-center justify-between border-b hairline-divider pb-3">
+          <div>
+            <span class="text-xs text-iron uppercase tracking-widest">Grupo 3 + Invitado</span>
+            <h3 class="text-19px tracking-heading-sm font-normal text-white">Partida 3</h3>
+          </div>
+          <span id="badgeMatch3Status" class="tag-pill tag-pill-subtle">Pendiente</span>
+        </div>
+
+        <form id="formMatch3" class="space-y-3">
+          <div id="match3InputsContainer" class="space-y-3">
+            <p class="text-xs text-iron italic py-4 text-center">Debes definir el cuarto participante en la Fase 04 antes de registrar esta partida.</p>
+          </div>
+          <div class="pt-3">
+            <button type="submit" id="btnSaveMatch3" class="pill-btn pill-btn-primary w-full" disabled>
+              Guardar partida 3
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 06: CLASIFICACIÓN GENERAL (CON EXPECTATIVA DE CONSULTA Y MEJOR PARTIDA) -->
+    <section id="secStandings" class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div class="space-y-1">
+          <span class="text-iron text-xs uppercase tracking-widest">Fase 06</span>
+          <h2 class="text-26px tracking-heading font-normal text-white">Clasificación general</h2>
+          <p class="text-smoke text-sm tracking-body-sm">
+            Consolidado del rendimiento de la primera fase. Para el jugador con dos partidas disputadas se computa únicamente su mejor resultado.
+          </p>
+        </div>
+        <button id="btnRevealStandings" class="pill-btn pill-btn-secondary" disabled>
+          Consultar clasificación general
+        </button>
+      </div>
+
+      <!-- Contenedor de la tabla: se devela con la expectativa -->
+      <div id="standingsTableContainer" class="card-surface p-0 overflow-hidden hidden">
+        <div class="p-5 border-b hairline-divider flex items-center justify-between bg-white/[0.01]">
+          <div class="text-xs text-iron uppercase tracking-widest">Tabla oficial de posiciones</div>
+          <div class="flex items-center gap-3 text-xs text-smoke">
+            <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-white inline-block"></span> Ganador de partida</span>
+            <span class="text-iron">Orden: Posición &gt; ⭐ &gt; 🪙</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b hairline-divider text-xs text-iron tracking-caption uppercase">
+                <th class="py-3.5 px-5 font-normal">#</th>
+                <th class="py-3.5 px-5 font-normal">Jugador</th>
+                <th class="py-3.5 px-5 font-normal text-center">Partidas jugadas</th>
+                <th class="py-3.5 px-5 font-normal text-right">Mejor Posición</th>
+                <th class="py-3.5 px-5 font-normal text-right">⭐ Estrellas</th>
+                <th class="py-3.5 px-5 font-normal text-right">🪙 Monedas</th>
+                <th class="py-3.5 px-5 font-normal text-center">Historial</th>
+              </tr>
+            </thead>
+            <tbody id="standingsTableBody" class="divide-y hairline-divider">
+              <!-- Filas dinámicas -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 07: CLASIFICACIÓN A LA GRAN FINAL -->
+    <section id="secFinalists" class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div class="space-y-1">
+          <span class="text-iron text-xs uppercase tracking-widest">Fase 07</span>
+          <h2 class="text-26px tracking-heading font-normal text-white">Clasificación a la Gran Final</h2>
+          <p class="text-smoke text-sm tracking-body-sm">
+            Clasifican los ganadores de las Partidas 1, 2 y 3, más el mejor jugador restante en el ranking general.
+          </p>
+        </div>
+        <button id="btnRevealFinalists" class="pill-btn pill-btn-primary" disabled>
+          Revelar los 4 finalistas
+        </button>
+      </div>
+
+      <!-- Cuadrícula de 4 Finalistas (Oculta hasta pulsar el botón con expectativa) -->
+      <div id="finalistsCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 hidden">
+        <!-- Slot 1: Ganador P1 -->
+        <div class="card-surface space-y-3 border-white/20">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-iron uppercase tracking-widest">Finalista 1</span>
+            <span class="tag-pill tag-pill-winner">Ganador P1</span>
+          </div>
+          <div id="fin1Name" class="text-xl font-medium text-white tracking-heading-sm">—</div>
+          <div class="text-xs text-iron">1.er puesto de la Partida 1</div>
+        </div>
+
+        <!-- Slot 2: Ganador P2 -->
+        <div class="card-surface space-y-3 border-white/20">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-iron uppercase tracking-widest">Finalista 2</span>
+            <span class="tag-pill tag-pill-winner">Ganador P2</span>
+          </div>
+          <div id="fin2Name" class="text-xl font-medium text-white tracking-heading-sm">—</div>
+          <div class="text-xs text-iron">1.er puesto de la Partida 2</div>
+        </div>
+
+        <!-- Slot 3: Ganador P3 -->
+        <div class="card-surface space-y-3 border-white/20">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-iron uppercase tracking-widest">Finalista 3</span>
+            <span class="tag-pill tag-pill-winner">Ganador P3</span>
+          </div>
+          <div id="fin3Name" class="text-xl font-medium text-white tracking-heading-sm">—</div>
+          <div class="text-xs text-iron">1.er puesto de la Partida 3</div>
+        </div>
+
+        <!-- Slot 4: Mejor restante global -->
+        <div class="card-surface space-y-3 border-white/20">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-iron uppercase tracking-widest">Finalista 4</span>
+            <span class="tag-pill tag-pill-accent">Mejor Global</span>
+          </div>
+          <div id="fin4Name" class="text-xl font-medium text-white tracking-heading-sm">—</div>
+          <div id="fin4Reason" class="text-xs text-iron">Mejor desempeño no clasificado</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 08: GRAN FINAL -->
+    <section id="secGrandFinal" class="space-y-6">
+      <div class="space-y-1">
+        <span class="text-iron text-xs uppercase tracking-widest">Fase 08</span>
+        <h2 class="text-26px tracking-heading font-normal text-white">Gran Final</h2>
+        <p class="text-smoke text-sm tracking-body-sm">Registra la posición, estrellas y monedas obtenidas por los 4 finalistas en la partida definitiva.</p>
+      </div>
+
+      <div class="card-surface space-y-5">
+        <div class="flex items-center justify-between border-b hairline-divider pb-3">
+          <div>
+            <span class="text-xs text-iron uppercase tracking-widest">Partida de Campeonato</span>
+            <h3 class="text-19px tracking-heading-sm font-normal text-white">Definición del Torneo</h3>
+          </div>
+          <span id="badgeFinalStatus" class="tag-pill tag-pill-subtle">Pendiente</span>
+        </div>
+
+        <form id="formGrandFinal" class="space-y-3">
+          <div id="finalInputsContainer" class="space-y-3">
+            <p class="text-xs text-iron italic py-4 text-center">Debes revelar los 4 finalistas en la Fase 07 antes de registrar la Gran Final.</p>
+          </div>
+          <div class="pt-3">
+            <button type="submit" id="btnSaveFinal" class="pill-btn pill-btn-primary w-full" disabled>
+              Registrar partida y proclamar campeón
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 09: VITRINA DEL CAMPEÓN -->
+    <section id="secChampion" class="space-y-6 hidden">
+      <div class="space-y-1 text-center">
+        <span class="text-iron text-xs uppercase tracking-widest">Fase 09</span>
+        <h2 class="text-35px tracking-heading-lg font-normal text-white">Campeón del Torneo</h2>
+        <p class="text-smoke text-sm tracking-body-sm">Mario Party Jamboree</p>
+      </div>
+
+      <div class="card-surface p-8 sm:p-12 text-center space-y-6 border-white/30 max-w-2xl mx-auto bg-gradient-to-b from-white/[0.03] to-transparent">
+        <div class="inline-flex p-3 rounded-full hairline-border border-white/30 mb-2">
+          <div class="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center font-bold text-xl">
+            1
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <div class="text-xs text-iron uppercase tracking-widest">Ganador indiscutido</div>
+          <h1 id="championNameDisplay" class="text-47px sm:text-53px tracking-display-lg font-normal text-white leading-none">
+            —
+          </h1>
+        </div>
+
+        <!-- Estadísticas en la final -->
+        <div class="flex items-center justify-center gap-8 pt-4 border-t hairline-divider max-w-sm mx-auto text-sm text-smoke">
+          <div>
+            <span class="block text-iron text-xs">Estrellas finales</span>
+            <span id="champFinalStars" class="text-white text-lg font-medium">0</span>
+          </div>
+          <div class="w-px h-8 hairline-divider border-l"></div>
+          <div>
+            <span class="block text-iron text-xs">Monedas finales</span>
+            <span id="champFinalCoins" class="text-white text-lg font-medium">0</span>
+          </div>
+        </div>
+
+        <div class="pt-4">
+          <button id="btnConfettiTrigger" class="pill-btn pill-btn-secondary text-xs">
+            Lanzar confeti nuevamente
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 10: HISTORIAL DE PARTIDAS -->
+    <section id="secHistory" class="space-y-6">
+      <div class="space-y-1">
+        <span class="text-iron text-xs uppercase tracking-widest">Fase 10</span>
+        <h2 class="text-26px tracking-heading font-normal text-white">Historial de partidas</h2>
+        <p class="text-smoke text-sm tracking-body-sm">Registro de los resultados oficiales de cada partida disputada.</p>
+      </div>
+
+      <div id="historyGridContainer" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div id="emptyHistoryPlaceholder" class="col-span-full card-surface text-center py-10 text-xs text-iron">
+          No hay partidas registradas en el historial.
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: HISTORIAL INDIVIDUAL DE JUGADOR -->
+  <div id="playerHistoryModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="card-surface max-w-lg w-full space-y-5 border-white/20">
+      <div class="flex items-start justify-between border-b hairline-divider pb-3">
+        <div>
+          <span class="text-xs text-iron uppercase tracking-widest">Ficha de jugador</span>
+          <h3 id="modalPlayerName" class="text-21px tracking-heading-sm font-normal text-white mt-0.5">—</h3>
+        </div>
+        <button id="btnCloseModal" class="text-iron hover:text-white p-1 text-sm font-mono">
+          ✕
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div class="text-xs text-iron">Desglose de partidas registradas:</div>
+        <div id="modalMatchesList" class="space-y-2 text-sm">
+          <!-- Items generados dinámicamente -->
+        </div>
+      </div>
+
+      <div class="pt-3 border-t hairline-divider flex justify-end">
+        <button id="btnModalCloseAction" class="pill-btn pill-btn-secondary text-xs py-2 px-5">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="border-t hairline-divider py-8 mt-16 text-center text-xs text-iron">
+    <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <span>Torneo Mario Party Jamboree</span>
+      <span>Sistema de gestión</span>
+    </div>
+  </footer>
+
+  <!-- LÓGICA DE GESTIÓN Y PERSISTENCIA (JAVASCRIPT) -->
+  <script>
+    (function () {
+      'use strict';
+
+      const STORAGE_KEY = 'MP_JAMBOREE_TOURNAMENT_V2';
+
+      // 11 Personajes oficiales de Mario Party Jamboree
+      const DEFAULT_PLAYERS = [
+        'Mario', 'Luigi', 'Peach', 'Daisy', 
+        'Wario', 'Waluigi', 'Yoshi', 'Rosalina', 
+        'Donkey Kong', 'Bowser', 'Toad'
+      ];
+
+      // Estado global del torneo
+      let state = {
+        players: [],
+        groups: {
+          group1: [],
+          group2: [],
+          group3: []
+        },
+        groupsDrawn: false,
+        matches: {
+          match1: null,
+          match2: null,
+          match3: null,
+          final: null
+        },
+        extraPlayerMethod: 'random', // 'random' | 'best_third'
+        extraPlayerSelected: null,
+        extraPlayerReason: '',
+        extraPlayerExecuted: false,
+        standingsRevealed: false,
+        finalistsRevealed: false,
+        champion: null
+      };
+
+      // Cargar del localStorage si existe
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            state = Object.assign(state, parsed);
+          }
+        } catch (e) {
+          console.error("Error al cargar estado de localStorage", e);
+        }
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+          console.error("Error al guardar estado", e);
+        }
+      }
+
+      function resetTournament() {
+        if (!confirm("¿Deseas reiniciar todo el torneo? Se perderán los registros actuales.")) return;
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+      }
+
+      /* -----------------------------------------------------------
+         MOTOR DE EXPECTATIVA (CUENTA REGRESIVA Y SHUFFLE)
+         ----------------------------------------------------------- */
+      let expInterval = null;
+      let shuffleInterval = null;
+
+      function triggerExpectation({ category = "PROCESO", title = "Procesando", shuffleNames = [], duration = 5, onComplete }) {
+        const overlay = document.getElementById('expectationOverlay');
+        const catElem = document.getElementById('expCategory');
+        const titleElem = document.getElementById('expTitle');
+        const countElem = document.getElementById('expCountdown');
+        const shuffleElem = document.getElementById('expShuffleText');
+        const subElem = document.getElementById('expSubtitle');
+
+        catElem.textContent = category.toUpperCase();
+        titleElem.textContent = title;
+        countElem.textContent = duration;
+        subElem.textContent = "Procesando registros oficiales...";
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+
+        // Shuffling rápido de nombres
+        const pool = shuffleNames.length > 0 ? shuffleNames : (state.players.length > 0 ? state.players : DEFAULT_PLAYERS);
+        let sIdx = 0;
+        clearInterval(shuffleInterval);
+        shuffleInterval = setInterval(() => {
+          sIdx = (sIdx + 1) % pool.length;
+          shuffleElem.textContent = pool[sIdx];
+        }, 75);
+
+        let remaining = duration;
+        clearInterval(expInterval);
+        expInterval = setInterval(() => {
+          remaining -= 1;
+          if (remaining > 0) {
+            countElem.textContent = remaining;
+            countElem.classList.remove('animate-count-pulse');
+            void countElem.offsetWidth; // Reflow
+            countElem.classList.add('animate-count-pulse');
+          } else {
+            clearInterval(expInterval);
+            clearInterval(shuffleInterval);
+            countElem.textContent = "✓";
+            subElem.textContent = "Finalizado.";
+            
+            // Disparar confeti monocromático
+            launchMonochromeConfetti();
+
+            setTimeout(() => {
+              overlay.classList.remove('flex');
+              overlay.classList.add('hidden');
+              if (typeof onComplete === 'function') {
+                onComplete();
+              }
+            }, 600);
+          }
+        }, 1000);
+      }
+
+      /* -----------------------------------------------------------
+         CONFETI MONOCROMÁTICO (CANVAS NATIVO)
+         ----------------------------------------------------------- */
+      function launchMonochromeConfetti() {
+        const canvas = document.getElementById('confettiCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        canvas.classList.remove('hidden');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        const colors = ['#ffffff', '#f3f4f6', '#e5e7eb', '#d1d5db', '#9ca3af', '#6b7280'];
+        const particles = [];
+        const count = 140;
+
+        for (let i = 0; i < count; i++) {
+          particles.push({
+            x: Math.random() * width,
+            y: Math.random() * height * 0.4 - height * 0.4,
+            w: Math.random() * 9 + 4,
+            h: Math.random() * 5 + 3,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            vx: (Math.random() - 0.5) * 4,
+            vy: Math.random() * 3 + 3,
+            rot: Math.random() * 360,
+            vRot: (Math.random() - 0.5) * 8,
+            alpha: 1
+          });
+        }
+
+        let animationFrame;
+        const startTime = Date.now();
+
+        function render() {
+          const elapsed = Date.now() - startTime;
+          ctx.clearRect(0, 0, width, height);
+
+          let activeCount = 0;
+          particles.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rot += p.vRot;
+            if (elapsed > 2000) {
+              p.alpha -= 0.015;
+            }
+
+            if (p.alpha > 0) {
+              activeCount++;
+              ctx.save();
+              ctx.translate(p.x, p.y);
+              ctx.rotate((p.rot * Math.PI) / 180);
+              ctx.globalAlpha = Math.max(0, p.alpha);
+              ctx.fillStyle = p.color;
+              ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+              ctx.restore();
+            }
+          });
+
+          if (activeCount > 0 && elapsed < 4000) {
+            animationFrame = requestAnimationFrame(render);
+          } else {
+            cancelAnimationFrame(animationFrame);
+            ctx.clearRect(0, 0, width, height);
+            canvas.classList.add('hidden');
+          }
+        }
+
+        render();
+      }
+
+      /* -----------------------------------------------------------
+         FASE 01: REGISTRO DE JUGADORES
+         ----------------------------------------------------------- */
+      const playerForm = document.getElementById('playerForm');
+      const playerInput = document.getElementById('playerInput');
+      const countDisplay = document.getElementById('countDisplay');
+      const regStatusHelp = document.getElementById('regStatusHelp');
+      const playerChipsContainer = document.getElementById('playerChipsContainer');
+      const noPlayersPlaceholder = document.getElementById('noPlayersPlaceholder');
+      const btnLoadDefaults = document.getElementById('btnLoadDefaults');
+      const btnDrawGroups = document.getElementById('btnDrawGroups');
+      const navPlayerCountBadge = document.getElementById('navPlayerCountBadge');
+
+      function updateRegistrationUI() {
+        const count = state.players.length;
+        countDisplay.textContent = count;
+        navPlayerCountBadge.textContent = `${count} / 11 Jugadores`;
+
+        if (count === 11) {
+          regStatusHelp.textContent = "Cupo completo (11/11). Puedes sortear los grupos.";
+          regStatusHelp.className = "text-white text-xs";
+          btnDrawGroups.disabled = state.groupsDrawn;
+        } else {
+          regStatusHelp.textContent = `Faltan ${11 - count} jugador(es)`;
+          regStatusHelp.className = "text-iron text-xs";
+          btnDrawGroups.disabled = true;
+        }
+
+        // Render chips
+        playerChipsContainer.innerHTML = '';
+        if (count === 0) {
+          playerChipsContainer.appendChild(noPlayersPlaceholder);
+        } else {
+          state.players.forEach((p, index) => {
+            const chip = document.createElement('div');
+            chip.className = "hairline-border rounded-pill px-3 py-1.5 text-xs text-white bg-black/60 flex items-center gap-2";
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = p;
+            chip.appendChild(nameSpan);
+
+            // Botón de eliminar solo antes del sorteo
+            if (!state.groupsDrawn) {
+              const removeBtn = document.createElement('button');
+              removeBtn.type = 'button';
+              removeBtn.className = "text-iron hover:text-white text-xs";
+              removeBtn.textContent = "✕";
+              removeBtn.onclick = () => removePlayer(index);
+              chip.appendChild(removeBtn);
+            }
+
+            playerChipsContainer.appendChild(chip);
+          });
+        }
+
+        // Deshabilitar formulario si ya se sortearon los grupos o están los 11
+        const locked = state.groupsDrawn || count >= 11;
+        playerInput.disabled = locked;
+        document.getElementById('btnAddPlayer').disabled = locked;
+        btnLoadDefaults.disabled = state.groupsDrawn || count > 0;
+      }
+
+      function addPlayer(name) {
+        const clean = name.trim();
+        if (!clean) return;
+        if (state.players.length >= 11) {
+          alert("Ya se han registrado los 11 jugadores requeridos.");
+          return;
+        }
+        if (state.players.some(p => p.toLowerCase() === clean.toLowerCase())) {
+          alert(`El jugador "${clean}" ya está en la lista.`);
+          return;
+        }
+        state.players.push(clean);
+        saveState();
+        updateRegistrationUI();
+      }
+
+      function removePlayer(index) {
+        if (state.groupsDrawn) return;
+        state.players.splice(index, 1);
+        saveState();
+        updateRegistrationUI();
+      }
+
+      playerForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        addPlayer(playerInput.value);
+        playerInput.value = '';
+        playerInput.focus();
+      });
+
+      btnLoadDefaults.addEventListener('click', () => {
+        if (state.players.length > 0) return;
+        state.players = [...DEFAULT_PLAYERS];
+        saveState();
+        updateRegistrationUI();
+      });
+
+      /* -----------------------------------------------------------
+         FASE 02: SORTEO DE GRUPOS (CON ANIMACIÓN DE 5 SEGUNDOS)
+         ----------------------------------------------------------- */
+      function renderGroupsUI() {
+        const g1List = document.getElementById('group1List');
+        const g2List = document.getElementById('group2List');
+        const g3List = document.getElementById('group3List');
+        const extraBadge = document.getElementById('group3ExtraSlotBadge');
+
+        g1List.innerHTML = '';
+        g2List.innerHTML = '';
+        g3List.innerHTML = '';
+
+        if (!state.groupsDrawn) {
+          g1List.innerHTML = '<li class="text-iron text-xs py-1">Sin sortear</li>';
+          g2List.innerHTML = '<li class="text-iron text-xs py-1">Sin sortear</li>';
+          g3List.innerHTML = '<li class="text-iron text-xs py-1">Sin sortear</li>';
+          extraBadge.textContent = "Pendiente selección";
+          return;
+        }
+
+        state.groups.group1.forEach(p => {
+          const li = document.createElement('li');
+          li.className = "flex items-center justify-between py-1 text-white border-b hairline-divider last:border-none";
+          li.innerHTML = `<span>${p}</span><span class="text-xs text-iron font-mono">G1</span>`;
+          g1List.appendChild(li);
+        });
+
+        state.groups.group2.forEach(p => {
+          const li = document.createElement('li');
+          li.className = "flex items-center justify-between py-1 text-white border-b hairline-divider last:border-none";
+          li.innerHTML = `<span>${p}</span><span class="text-xs text-iron font-mono">G2</span>`;
+          g2List.appendChild(li);
+        });
+
+        state.groups.group3.forEach(p => {
+          const li = document.createElement('li');
+          li.className = "flex items-center justify-between py-1 text-white border-b hairline-divider last:border-none";
+          li.innerHTML = `<span>${p}</span><span class="text-xs text-iron font-mono">G3</span>`;
+          g3List.appendChild(li);
+        });
+
+        if (state.extraPlayerExecuted && state.extraPlayerSelected) {
+          extraBadge.textContent = state.extraPlayerSelected;
+          extraBadge.className = "text-white font-medium";
+        } else {
+          extraBadge.textContent = "Pendiente (Fase 04)";
+          extraBadge.className = "text-iron";
+        }
+
+        btnDrawGroups.disabled = true;
+        btnDrawGroups.textContent = "Grupos sorteados";
+      }
+
+      btnDrawGroups.addEventListener('click', () => {
+        if (state.players.length !== 11) return;
+
+        triggerExpectation({
+          category: "Sorteo de Grupos",
+          title: "Distribuyendo 11 jugadores",
+          shuffleNames: state.players,
+          duration: 5,
+          onComplete: () => {
+            // Algoritmo Fisher-Yates
+            const shuffled = [...state.players];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+
+            state.groups.group1 = shuffled.slice(0, 4);
+            state.groups.group2 = shuffled.slice(4, 8);
+            state.groups.group3 = shuffled.slice(8, 11);
+            state.groupsDrawn = true;
+
+            saveState();
+            updateRegistrationUI();
+            renderGroupsUI();
+            renderMatchForms();
+            updateExtraPlayerUI();
+
+            // Scroll suave a grupos
+            document.getElementById('secGroups').scrollIntoView({ behavior: 'smooth' });
+          }
+        });
+      });
+
+      /* -----------------------------------------------------------
+         FASE 03: RENDER Y REGISTRO DE PARTIDAS 1 Y 2
+         ----------------------------------------------------------- */
+      function createPlayerScoreRow(player, index, matchKey, existingData) {
+        const row = document.createElement('div');
+        row.className = "hairline-border rounded-card p-3 bg-black/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3";
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.className = "flex items-center gap-3";
+        infoDiv.innerHTML = `
+          <span class="text-xs text-iron font-mono w-4">${index + 1}.</span>
+          <span class="text-sm font-medium text-white">${player}</span>
+          <input type="hidden" name="player_${index}" value="${player}">
+        `;
+
+        const inputsDiv = document.createElement('div');
+        inputsDiv.className = "flex items-center gap-3 text-xs";
+
+        const posVal = existingData ? existingData.position : (index + 1);
+        const starsVal = existingData ? existingData.stars : 0;
+        const coinsVal = existingData ? existingData.coins : 0;
+
+        inputsDiv.innerHTML = `
+          <div class="flex items-center gap-1.5">
+            <label class="text-iron">Pos:</label>
+            <select name="pos_${index}" class="bg-black hairline-border rounded-pill px-2.5 py-1 text-white text-xs focus:outline-none focus:border-white">
+              <option value="1" ${posVal == 1 ? 'selected' : ''}>1.º</option>
+              <option value="2" ${posVal == 2 ? 'selected' : ''}>2.º</option>
+              <option value="3" ${posVal == 3 ? 'selected' : ''}>3.º</option>
+              <option value="4" ${posVal == 4 ? 'selected' : ''}>4.º</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <label class="text-iron">⭐:</label>
+            <input type="number" name="stars_${index}" min="0" max="99" value="${starsVal}" class="w-14 bg-black hairline-border rounded-pill px-2.5 py-1 text-white text-xs focus:outline-none focus:border-white">
+          </div>
+          <div class="flex items-center gap-1.5">
+            <label class="text-iron">🪙:</label>
+            <input type="number" name="coins_${index}" min="0" max="999" value="${coinsVal}" class="w-16 bg-black hairline-border rounded-pill px-2.5 py-1 text-white text-xs focus:outline-none focus:border-white">
+          </div>
+        `;
+
+        row.appendChild(infoDiv);
+        row.appendChild(inputsDiv);
+        return row;
+      }
+
+      function renderMatchForms() {
+        // Partida 1
+        const m1Container = document.getElementById('match1InputsContainer');
+        const btnSaveM1 = document.getElementById('btnSaveMatch1');
+        const badgeM1 = document.getElementById('badgeMatch1Status');
+
+        if (state.groupsDrawn) {
+          m1Container.innerHTML = '';
+          state.groups.group1.forEach((player, idx) => {
+            const existing = state.matches.match1 ? state.matches.match1.results.find(r => r.player === player) : null;
+            m1Container.appendChild(createPlayerScoreRow(player, idx, 'match1', existing));
+          });
+          btnSaveM1.disabled = false;
+          if (state.matches.match1) {
+            badgeM1.textContent = "Completada";
+            badgeM1.className = "tag-pill tag-pill-winner";
+            btnSaveM1.textContent = "Actualizar resultados P1";
+          } else {
+            badgeM1.textContent = "Lista para jugar";
+            badgeM1.className = "tag-pill tag-pill-subtle";
+            btnSaveM1.textContent = "Guardar partida 1";
+          }
+        }
+
+        // Partida 2
+        const m2Container = document.getElementById('match2InputsContainer');
+        const btnSaveM2 = document.getElementById('btnSaveMatch2');
+        const badgeM2 = document.getElementById('badgeMatch2Status');
+
+        if (state.groupsDrawn) {
+          m2Container.innerHTML = '';
+          state.groups.group2.forEach((player, idx) => {
+            const existing = state.matches.match2 ? state.matches.match2.results.find(r => r.player === player) : null;
+            m2Container.appendChild(createPlayerScoreRow(player, idx, 'match2', existing));
+          });
+          btnSaveM2.disabled = false;
+          if (state.matches.match2) {
+            badgeM2.textContent = "Completada";
+            badgeM2.className = "tag-pill tag-pill-winner";
+            btnSaveM2.textContent = "Actualizar resultados P2";
+          } else {
+            badgeM2.textContent = "Lista para jugar";
+            badgeM2.className = "tag-pill tag-pill-subtle";
+            btnSaveM2.textContent = "Guardar partida 2";
+          }
+        }
+
+        // Partida 3
+        renderMatch3Form();
+      }
+
+      function parseMatchFormData(form, count) {
+        const results = [];
+        const usedPositions = new Set();
+
+        for (let i = 0; i < count; i++) {
+          const player = form.querySelector(`input[name="player_${i}"]`).value;
+          const pos = parseInt(form.querySelector(`select[name="pos_${i}"]`).value, 10);
+          const stars = parseInt(form.querySelector(`input[name="stars_${i}"]`).value, 10) || 0;
+          const coins = parseInt(form.querySelector(`input[name="coins_${i}"]`).value, 10) || 0;
+
+          if (usedPositions.has(pos)) {
+            alert(`Posición duplicada (${pos}.º). Cada jugador debe tener una posición única del 1.º al ${count}.º.`);
+            return null;
+          }
+          usedPositions.add(pos);
+
+          results.push({ player, position: pos, stars, coins });
+        }
+
+        results.sort((a, b) => a.position - b.position);
+        return results;
+      }
+
+      document.getElementById('formMatch1').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const results = parseMatchFormData(e.target, 4);
+        if (!results) return;
+
+        state.matches.match1 = {
+          name: "Partida 1 — Grupo 1",
+          results,
+          timestamp: new Date().toISOString()
+        };
+        saveState();
+        renderMatchForms();
+        updateExtraPlayerUI();
+        updateStandingsUI();
+        renderHistory();
+        alert("Resultados de la Partida 1 guardados con éxito.");
+      });
+
+      document.getElementById('formMatch2').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const results = parseMatchFormData(e.target, 4);
+        if (!results) return;
+
+        state.matches.match2 = {
+          name: "Partida 2 — Grupo 2",
+          results,
+          timestamp: new Date().toISOString()
+        };
+        saveState();
+        renderMatchForms();
+        updateExtraPlayerUI();
+        updateStandingsUI();
+        renderHistory();
+        alert("Resultados de la Partida 2 guardados con éxito.");
+      });
+
+      /* -----------------------------------------------------------
+         FASE 04: SELECCIÓN DEL CUARTO PARTICIPANTE PARA PARTIDA 3
+         (SELECCIONA PRIMERO LA OPCIÓN, NO DEVELA ANTES, TIENE SUSPENSO)
+         ----------------------------------------------------------- */
+      const extraMethodSelectorBlock = document.getElementById('extraMethodSelectorBlock');
+      const extraSelectionResultBox = document.getElementById('extraSelectionResultBox');
+      const btnExecuteFourthSelection = document.getElementById('btnExecuteFourthSelection');
+      const extraMethodHelpText = document.getElementById('extraMethodHelpText');
+      const extraPlayerNameDisplay = document.getElementById('extraPlayerNameDisplay');
+      const extraPlayerReasonDisplay = document.getElementById('extraPlayerReasonDisplay');
+      const badgeMethodUsed = document.getElementById('badgeMethodUsed');
+      const btnRechooseFourth = document.getElementById('btnRechooseFourth');
+      const comparisonDetailBlock = document.getElementById('comparisonDetailBlock');
+
+      function updateExtraPlayerUI() {
+        const m1Done = !!state.matches.match1;
+        const m2Done = !!state.matches.match2;
+
+        if (!m1Done || !m2Done) {
+          btnExecuteFourthSelection.disabled = true;
+          extraMethodHelpText.textContent = "Debes completar y registrar las Partidas 1 y 2 para poder determinar este cupo.";
+          extraMethodHelpText.className = "text-xs text-iron";
+          extraSelectionResultBox.classList.add('hidden');
+          extraMethodSelectorBlock.classList.remove('hidden');
+          return;
+        }
+
+        // Si ya están listas las partidas 1 y 2
+        extraMethodHelpText.textContent = "Partidas 1 y 2 completadas. Elige una modalidad y presiona el botón para procesar.";
+        extraMethodHelpText.className = "text-xs text-white";
+        btnExecuteFourthSelection.disabled = state.extraPlayerExecuted;
+
+        // Si ya fue ejecutado el sorteo / evaluación
+        if (state.extraPlayerExecuted && state.extraPlayerSelected) {
+          extraMethodSelectorBlock.classList.add('hidden');
+          extraSelectionResultBox.classList.remove('hidden');
+          
+          extraPlayerNameDisplay.textContent = state.extraPlayerSelected;
+          extraPlayerReasonDisplay.textContent = state.extraPlayerReason;
+          badgeMethodUsed.textContent = state.extraPlayerMethod === 'best_third' ? 'Mejor Tercero' : 'Sorteo Aleatorio';
+
+          if (state.extraPlayerMethod === 'best_third') {
+            comparisonDetailBlock.classList.remove('hidden');
+            renderComparisonCards();
+          } else {
+            comparisonDetailBlock.classList.add('hidden');
+          }
+        } else {
+          extraMethodSelectorBlock.classList.remove('hidden');
+          extraSelectionResultBox.classList.add('hidden');
+        }
+      }
+
+      function renderComparisonCards() {
+        if (!state.matches.match1 || !state.matches.match2) return;
+        const cand1 = state.matches.match1.results.find(r => r.position === 3);
+        const cand2 = state.matches.match2.results.find(r => r.position === 3);
+        if (!cand1 || !cand2) return;
+
+        document.getElementById('cand1Name').textContent = cand1.player;
+        document.getElementById('cand1Stars').textContent = cand1.stars;
+        document.getElementById('cand1Coins').textContent = cand1.coins;
+
+        document.getElementById('cand2Name').textContent = cand2.player;
+        document.getElementById('cand2Stars').textContent = cand2.stars;
+        document.getElementById('cand2Coins').textContent = cand2.coins;
+
+        const isCand1Winner = state.extraPlayerSelected === cand1.player;
+        const cand1Badge = document.getElementById('cand1Badge');
+        const cand2Badge = document.getElementById('cand2Badge');
+        const cand1Card = document.getElementById('cand1Card');
+        const cand2Card = document.getElementById('cand2Card');
+
+        if (isCand1Winner) {
+          cand1Badge.textContent = "Seleccionado";
+          cand1Badge.className = "tag-pill tag-pill-winner text-xs";
+          cand1Card.className = "hairline-border rounded-card p-4 space-y-2 border-white/40 bg-white/5";
+
+          cand2Badge.textContent = "No seleccionado";
+          cand2Badge.className = "tag-pill tag-pill-subtle text-xs";
+          cand2Card.className = "hairline-border rounded-card p-4 space-y-2 opacity-60";
+        } else {
+          cand2Badge.textContent = "Seleccionado";
+          cand2Badge.className = "tag-pill tag-pill-winner text-xs";
+          cand2Card.className = "hairline-border rounded-card p-4 space-y-2 border-white/40 bg-white/5";
+
+          cand1Badge.textContent = "No seleccionado";
+          cand1Badge.className = "tag-pill tag-pill-subtle text-xs";
+          cand1Card.className = "hairline-border rounded-card p-4 space-y-2 opacity-60";
+        }
+      }
+
+      btnExecuteFourthSelection.addEventListener('click', () => {
+        const method = document.querySelector('input[name="fourthPlayerMethod"]:checked').value;
+        const cand1 = state.matches.match1.results.find(r => r.position === 3);
+        const cand2 = state.matches.match2.results.find(r => r.position === 3);
+
+        const candidatesShuffle = method === 'best_third' 
+          ? [cand1.player, cand2.player]
+          : [...state.matches.match1.results.map(r => r.player), ...state.matches.match2.results.map(r => r.player)];
+
+        triggerExpectation({
+          category: method === 'best_third' ? "Evaluación de Mejor Tercero" : "Sorteo Cuarto Jugador",
+          title: method === 'best_third' ? "Comparando estadísticas de 3.º puestos" : "Sorteando entre jugadores de P1 y P2",
+          shuffleNames: candidatesShuffle,
+          duration: 5,
+          onComplete: () => {
+            state.extraPlayerMethod = method;
+
+            if (method === 'best_third') {
+              // Comparativa técnica:
+              // 1. Estrellas
+              // 2. Monedas
+              // 3. En empate exacto, aleatorio
+              let winner = null;
+              let reason = "";
+
+              if (cand1.stars > cand2.stars) {
+                winner = cand1.player;
+                reason = `Mayor cantidad de estrellas (${cand1.stars} vs ${cand2.stars}).`;
+              } else if (cand2.stars > cand1.stars) {
+                winner = cand2.player;
+                reason = `Mayor cantidad de estrellas (${cand2.stars} vs ${cand1.stars}).`;
+              } else {
+                // Empate en estrellas -> desempate por monedas
+                if (cand1.coins > cand2.coins) {
+                  winner = cand1.player;
+                  reason = `Empate en estrellas (${cand1.stars}). Desempate por monedas (${cand1.coins} vs ${cand2.coins}).`;
+                } else if (cand2.coins > cand1.coins) {
+                  winner = cand2.player;
+                  reason = `Empate en estrellas (${cand2.stars}). Desempate por monedas (${cand2.coins} vs ${cand1.coins}).`;
+                } else {
+                  winner = Math.random() < 0.5 ? cand1.player : cand2.player;
+                  reason = `Empate absoluto en estrellas (${cand1.stars}) y monedas (${cand1.coins}). Definido por sorteo.`;
+                }
+              }
+
+              state.extraPlayerSelected = winner;
+              state.extraPlayerReason = reason;
+            } else {
+              // Opción A: Sorteo aleatorio entre los 8 jugadores
+              const pool = [...state.matches.match1.results.map(r => r.player), ...state.matches.match2.results.map(r => r.player)];
+              const picked = pool[Math.floor(Math.random() * pool.length)];
+              state.extraPlayerSelected = picked;
+              state.extraPlayerReason = "Seleccionado aleatoriamente por sorteo de repechaje.";
+            }
+
+            state.extraPlayerExecuted = true;
+            saveState();
+            updateExtraPlayerUI();
+            renderGroupsUI();
+            renderMatchForms();
+          }
+        });
+      });
+
+      btnRechooseFourth.addEventListener('click', () => {
+        if (state.matches.match3) {
+          if (!confirm("La Partida 3 ya fue registrada con este jugador. Cambiar la selección reiniciará los datos de la Partida 3. ¿Deseas continuar?")) {
+            return;
+          }
+          state.matches.match3 = null;
+        }
+        state.extraPlayerExecuted = false;
+        state.extraPlayerSelected = null;
+        state.extraPlayerReason = '';
+        saveState();
+        updateExtraPlayerUI();
+        renderGroupsUI();
+        renderMatchForms();
+        updateStandingsUI();
+        renderHistory();
+      });
+
+      /* -----------------------------------------------------------
+         FASE 05: REGISTRO DE LA PARTIDA 3
+         ----------------------------------------------------------- */
+      function renderMatch3Form() {
+        const m3Container = document.getElementById('match3InputsContainer');
+        const btnSaveM3 = document.getElementById('btnSaveMatch3');
+        const badgeM3 = document.getElementById('badgeMatch3Status');
+
+        if (!state.groupsDrawn || !state.extraPlayerExecuted || !state.extraPlayerSelected) {
+          m3Container.innerHTML = '<p class="text-xs text-iron italic py-4 text-center">Debes definir el cuarto participante en la Fase 04 antes de registrar esta partida.</p>';
+          btnSaveM3.disabled = true;
+          badgeM3.textContent = "Bloqueada";
+          badgeM3.className = "tag-pill tag-pill-subtle";
+          return;
+        }
+
+        const match3Roster = [...state.groups.group3, state.extraPlayerSelected];
+        m3Container.innerHTML = '';
+
+        match3Roster.forEach((player, idx) => {
+          const existing = state.matches.match3 ? state.matches.match3.results.find(r => r.player === player) : null;
+          m3Container.appendChild(createPlayerScoreRow(player, idx, 'match3', existing));
+        });
+
+        btnSaveM3.disabled = false;
+        if (state.matches.match3) {
+          badgeM3.textContent = "Completada";
+          badgeM3.className = "tag-pill tag-pill-winner";
+          btnSaveM3.textContent = "Actualizar resultados P3";
+        } else {
+          badgeM3.textContent = "Lista para jugar";
+          badgeM3.className = "tag-pill tag-pill-subtle";
+          btnSaveM3.textContent = "Guardar partida 3";
+        }
+      }
+
+      document.getElementById('formMatch3').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const results = parseMatchFormData(e.target, 4);
+        if (!results) return;
+
+        state.matches.match3 = {
+          name: "Partida 3 — Grupo 3 + Cuarto jugador",
+          results,
+          timestamp: new Date().toISOString()
+        };
+        saveState();
+        renderMatchForms();
+        updateStandingsUI();
+        updateFinalistsUI();
+        renderHistory();
+        alert("Resultados de la Partida 3 guardados con éxito.");
+      });
+
+      /* -----------------------------------------------------------
+         FASE 06: CLASIFICACIÓN GENERAL (CON EXPECTATIVA Y REGLA DE MEJOR PARTIDA)
+         ----------------------------------------------------------- */
+      const btnRevealStandings = document.getElementById('btnRevealStandings');
+      const standingsTableContainer = document.getElementById('standingsTableContainer');
+      const standingsTableBody = document.getElementById('standingsTableBody');
+
+      function calculateStandingsData() {
+        // Objeto consolidado por jugador
+        const stats = {};
+        state.players.forEach(p => {
+          stats[p] = {
+            player: p,
+            matchesPlayed: 0,
+            allMatches: [], // { matchName, position, stars, coins }
+            isMatchWinner: false,
+            winnerLabel: null,
+            bestMatch: null
+          };
+        });
+
+        const initialMatches = [
+          { key: 'match1', label: 'Ganador P1', name: 'Partida 1' },
+          { key: 'match2', label: 'Ganador P2', name: 'Partida 2' },
+          { key: 'match3', label: 'Ganador P3', name: 'Partida 3' }
+        ];
+
+        initialMatches.forEach(m => {
+          const matchData = state.matches[m.key];
+          if (matchData && matchData.results) {
+            matchData.results.forEach(res => {
+              if (stats[res.player]) {
+                stats[res.player].matchesPlayed += 1;
+                stats[res.player].allMatches.push({
+                  matchName: m.name,
+                  position: res.position,
+                  stars: res.stars,
+                  coins: res.coins
+                });
+
+                if (res.position === 1) {
+                  stats[res.player].isMatchWinner = true;
+                  stats[res.player].winnerLabel = m.label;
+                }
+              }
+            });
+          }
+        });
+
+        // REGLA SOLICITADA: Para el jugador que repite partida, únicamente mostrar la mejor partida que tuvo.
+        // Mejor partida se define por: mejor posición (1 < 2 < 3 < 4), mayor estrellas, mayor monedas.
+        const standingsList = Object.values(stats).map(item => {
+          if (item.allMatches.length === 0) {
+            return {
+              ...item,
+              displayPos: '-',
+              displayStars: 0,
+              displayCoins: 0,
+              bestMatchInfo: null
+            };
+          }
+
+          // Ordenar sus partidas por calidad: menor posición, mayor estrellas, mayor monedas
+          const sortedPersonalMatches = [...item.allMatches].sort((a, b) => {
+            if (a.position !== b.position) return a.position - b.position;
+            if (b.stars !== a.stars) return b.stars - a.stars;
+            return b.coins - a.coins;
+          });
+
+          const best = sortedPersonalMatches[0];
+          return {
+            ...item,
+            bestMatch: best,
+            displayPos: best.position,
+            displayStars: best.stars,
+            displayCoins: best.coins
+          };
+        });
+
+        // Orden de la clasificación general:
+        // 1. Quien tenga partidas jugadas
+        // 2. Mejor posición (ascendente: 1º, 2º...)
+        // 3. Mayor cantidad de estrellas (descendente)
+        // 4. Mayor cantidad de monedas (descendente)
+        standingsList.sort((a, b) => {
+          if (a.matchesPlayed === 0 && b.matchesPlayed === 0) return 0;
+          if (a.matchesPlayed === 0) return 1;
+          if (b.matchesPlayed === 0) return -1;
+
+          if (a.displayPos !== b.displayPos) return a.displayPos - b.displayPos;
+          if (b.displayStars !== a.displayStars) return b.displayStars - a.displayStars;
+          return b.displayCoins - a.displayCoins;
+        });
+
+        return standingsList;
+      }
+
+      function updateStandingsUI() {
+        const hasAnyMatch = !!state.matches.match1 || !!state.matches.match2 || !!state.matches.match3;
+        btnRevealStandings.disabled = !hasAnyMatch;
+
+        if (state.standingsRevealed && hasAnyMatch) {
+          standingsTableContainer.classList.remove('hidden');
+          btnRevealStandings.textContent = "Actualizar clasificación general";
+          renderStandingsTable();
+        } else {
+          standingsTableContainer.classList.add('hidden');
+          btnRevealStandings.textContent = "Consultar clasificación general";
+        }
+      }
+
+      function renderStandingsTable() {
+        const list = calculateStandingsData();
+        standingsTableBody.innerHTML = '';
+
+        list.forEach((item, rank) => {
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-white/[0.02] transition";
+
+          const rankDisplay = item.matchesPlayed > 0 ? (rank + 1) : '-';
+          
+          let playerMarkup = `<div class="flex items-center gap-2">
+            <span class="font-medium text-white">${item.player}</span>`;
+          
+          if (item.isMatchWinner) {
+            playerMarkup += `<span class="tag-pill tag-pill-winner text-[10px] py-0 px-2">${item.winnerLabel}</span>`;
+          }
+
+          if (item.matchesPlayed > 1) {
+            playerMarkup += `<span class="text-[10px] text-iron" title="Mejor partida computada: ${item.bestMatch.matchName}">(${item.bestMatch.matchName})</span>`;
+          }
+
+          playerMarkup += `</div>`;
+
+          tr.innerHTML = `
+            <td class="py-3 px-5 font-mono text-iron text-xs">${rankDisplay}</td>
+            <td class="py-3 px-5">${playerMarkup}</td>
+            <td class="py-3 px-5 text-center text-xs text-smoke">${item.matchesPlayed}</td>
+            <td class="py-3 px-5 text-right font-medium text-white">${item.displayPos !== '-' ? item.displayPos + '.º' : '-'}</td>
+            <td class="py-3 px-5 text-right text-white font-mono">${item.displayStars}</td>
+            <td class="py-3 px-5 text-right text-white font-mono">${item.displayCoins}</td>
+            <td class="py-3 px-5 text-center">
+              <button class="text-xs text-iron hover:text-white underline underline-offset-2" onclick="window.viewPlayerHistory('${item.player}')">
+                Ver detalle
+              </button>
+            </td>
+          `;
+
+          standingsTableBody.appendChild(tr);
+        });
+      }
+
+      btnRevealStandings.addEventListener('click', () => {
+        triggerExpectation({
+          category: "Clasificación General",
+          title: "Consolidando resultados de partidas",
+          shuffleNames: state.players,
+          duration: 5,
+          onComplete: () => {
+            state.standingsRevealed = true;
+            saveState();
+            updateStandingsUI();
+            standingsTableContainer.scrollIntoView({ behavior: 'smooth' });
+          }
+        });
+      });
+
+      /* -----------------------------------------------------------
+         FASE 07: CLASIFICACIÓN A LA GRAN FINAL
+         ----------------------------------------------------------- */
+      const btnRevealFinalists = document.getElementById('btnRevealFinalists');
+      const finalistsCardsGrid = document.getElementById('finalistsCardsGrid');
+
+      function calculateFinalists() {
+        if (!state.matches.match1 || !state.matches.match2 || !state.matches.match3) {
+          return null;
+        }
+
+        const win1 = state.matches.match1.results.find(r => r.position === 1);
+        const win2 = state.matches.match2.results.find(r => r.position === 1);
+        const win3 = state.matches.match3.results.find(r => r.position === 1);
+
+        if (!win1 || !win2 || !win3) return null;
+
+        const winnersSet = new Set([win1.player, win2.player, win3.player]);
+
+        // 4.º finalista: mejor rendimiento global restante de la clasificación general
+        const standings = calculateStandingsData();
+        const nonWinners = standings.filter(item => !winnersSet.has(item.player) && item.matchesPlayed > 0);
+
+        const fourthFinalist = nonWinners[0] || null;
+
+        return {
+          finalist1: win1.player,
+          finalist2: win2.player,
+          finalist3: win3.player,
+          finalist4: fourthFinalist ? fourthFinalist.player : 'Sin definir',
+          fourthReason: fourthFinalist ? `Mejor restante: ${fourthFinalist.displayPos}.º con ⭐${fourthFinalist.displayStars} y 🪙${fourthFinalist.displayCoins}` : ''
+        };
+      }
+
+      function updateFinalistsUI() {
+        const all3Done = !!state.matches.match1 && !!state.matches.match2 && !!state.matches.match3;
+        btnRevealFinalists.disabled = !all3Done;
+
+        if (state.finalistsRevealed && all3Done) {
+          finalistsCardsGrid.classList.remove('hidden');
+          const data = calculateFinalists();
+          if (data) {
+            document.getElementById('fin1Name').textContent = data.finalist1;
+            document.getElementById('fin2Name').textContent = data.finalist2;
+            document.getElementById('fin3Name').textContent = data.finalist3;
+            document.getElementById('fin4Name').textContent = data.finalist4;
+            document.getElementById('fin4Reason').textContent = data.fourthReason;
+          }
+          btnRevealFinalists.textContent = "Finalistas revelados";
+          renderGrandFinalForm();
+        } else {
+          finalistsCardsGrid.classList.add('hidden');
+          btnRevealFinalists.textContent = "Revelar los 4 finalistas";
+        }
+      }
+
+      btnRevealFinalists.addEventListener('click', () => {
+        const candidates = calculateFinalists();
+        if (!candidates) return;
+
+        triggerExpectation({
+          category: "Gran Final",
+          title: "Determinando a los 4 finalistas",
+          shuffleNames: [candidates.finalist1, candidates.finalist2, candidates.finalist3, candidates.finalist4],
+          duration: 5,
+          onComplete: () => {
+            state.finalistsRevealed = true;
+            saveState();
+            updateFinalistsUI();
+            finalistsCardsGrid.scrollIntoView({ behavior: 'smooth' });
+          }
+        });
+      });
+
+      /* -----------------------------------------------------------
+         FASE 08 & 09: GRAN FINAL Y PROCLAMACIÓN DEL CAMPEÓN
+         ----------------------------------------------------------- */
+      function renderGrandFinalForm() {
+        const finalContainer = document.getElementById('finalInputsContainer');
+        const btnSaveFinal = document.getElementById('btnSaveFinal');
+        const badgeFinal = document.getElementById('badgeFinalStatus');
+
+        if (!state.finalistsRevealed) {
+          finalContainer.innerHTML = '<p class="text-xs text-iron italic py-4 text-center">Debes revelar los 4 finalistas en la Fase 07 antes de registrar la Gran Final.</p>';
+          btnSaveFinal.disabled = true;
+          badgeFinal.textContent = "Pendiente";
+          badgeFinal.className = "tag-pill tag-pill-subtle";
+          return;
+        }
+
+        const finData = calculateFinalists();
+        if (!finData) return;
+        const roster = [finData.finalist1, finData.finalist2, finData.finalist3, finData.finalist4];
+
+        finalContainer.innerHTML = '';
+        roster.forEach((player, idx) => {
+          const existing = state.matches.final ? state.matches.final.results.find(r => r.player === player) : null;
+          finalContainer.appendChild(createPlayerScoreRow(player, idx, 'final', existing));
+        });
+
+        btnSaveFinal.disabled = false;
+        if (state.matches.final) {
+          badgeFinal.textContent = "Completada";
+          badgeFinal.className = "tag-pill tag-pill-winner";
+          btnSaveFinal.textContent = "Actualizar resultado de la Final";
+          updateChampionUI();
+        } else {
+          badgeFinal.textContent = "Lista para jugar";
+          badgeFinal.className = "tag-pill tag-pill-subtle";
+          btnSaveFinal.textContent = "Registrar partida y proclamar campeón";
+        }
+      }
+
+      document.getElementById('formGrandFinal').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const results = parseMatchFormData(e.target, 4);
+        if (!results) return;
+
+        const winner = results.find(r => r.position === 1);
+
+        triggerExpectation({
+          category: "Coronación del Campeón",
+          title: "Determinando al ganador del torneo",
+          shuffleNames: results.map(r => r.player),
+          duration: 5,
+          onComplete: () => {
+            state.matches.final = {
+              name: "Gran Final",
+              results,
+              timestamp: new Date().toISOString()
+            };
+            state.champion = winner;
+            saveState();
+            renderGrandFinalForm();
+            updateChampionUI();
+            renderHistory();
+            document.getElementById('secChampion').scrollIntoView({ behavior: 'smooth' });
+          }
+        });
+      });
+
+      function updateChampionUI() {
+        const secChamp = document.getElementById('secChampion');
+        if (state.champion) {
+          secChamp.classList.remove('hidden');
+          document.getElementById('championNameDisplay').textContent = state.champion.player;
+          document.getElementById('champFinalStars').textContent = state.champion.stars;
+          document.getElementById('champFinalCoins').textContent = state.champion.coins;
+        } else {
+          secChamp.classList.add('hidden');
+        }
+      }
+
+      document.getElementById('btnConfettiTrigger').addEventListener('click', () => {
+        launchMonochromeConfetti();
+      });
+
+      /* -----------------------------------------------------------
+         FASE 10: HISTORIAL DE PARTIDAS
+         ----------------------------------------------------------- */
+      function renderHistory() {
+        const container = document.getElementById('historyGridContainer');
+        const empty = document.getElementById('emptyHistoryPlaceholder');
+
+        const recordedMatches = [];
+        if (state.matches.match1) recordedMatches.push(state.matches.match1);
+        if (state.matches.match2) recordedMatches.push(state.matches.match2);
+        if (state.matches.match3) recordedMatches.push(state.matches.match3);
+        if (state.matches.final) recordedMatches.push(state.matches.final);
+
+        if (recordedMatches.length === 0) {
+          container.innerHTML = '';
+          container.appendChild(empty);
+          return;
+        }
+
+        container.innerHTML = '';
+        recordedMatches.forEach(m => {
+          const card = document.createElement('div');
+          card.className = "card-surface space-y-4";
+          
+          let rowsHtml = '';
+          m.results.forEach(r => {
+            rowsHtml += `
+              <div class="flex items-center justify-between py-1.5 text-xs border-b hairline-divider last:border-none">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 font-mono text-iron">${r.position}.º</span>
+                  <span class="text-white font-medium ${r.position === 1 ? 'underline underline-offset-4 decoration-white/40' : ''}">${r.player}</span>
+                </div>
+                <div class="flex items-center gap-3 text-smoke font-mono">
+                  <span>⭐ ${r.stars}</span>
+                  <span>🪙 ${r.coins}</span>
+                </div>
+              </div>
+            `;
+          });
+
+          card.innerHTML = `
+            <div class="flex items-center justify-between border-b hairline-divider pb-2.5">
+              <h4 class="text-sm font-medium text-white">${m.name}</h4>
+              <span class="tag-pill tag-pill-subtle text-[11px]">Finalizada</span>
+            </div>
+            <div class="space-y-1">
+              ${rowsHtml}
+            </div>
+          `;
+
+          container.appendChild(card);
+        });
+      }
+
+      /* -----------------------------------------------------------
+         MODAL DE HISTORIAL INDIVIDUAL DE JUGADOR
+         ----------------------------------------------------------- */
+      window.viewPlayerHistory = function (playerName) {
+        const modal = document.getElementById('playerHistoryModal');
+        const nameElem = document.getElementById('modalPlayerName');
+        const listElem = document.getElementById('modalMatchesList');
+
+        nameElem.textContent = playerName;
+        listElem.innerHTML = '';
+
+        const playerMatches = [];
+        ['match1', 'match2', 'match3', 'final'].forEach(key => {
+          const m = state.matches[key];
+          if (m && m.results) {
+            const hit = m.results.find(r => r.player === playerName);
+            if (hit) {
+              playerMatches.push({
+                matchName: m.name,
+                isFinal: key === 'final',
+                ...hit
+              });
+            }
+          }
+        });
+
+        if (playerMatches.length === 0) {
+          listElem.innerHTML = '<p class="text-xs text-iron py-2">No ha disputado partidas todavía.</p>';
+        } else {
+          playerMatches.forEach(pm => {
+            const item = document.createElement('div');
+            item.className = "hairline-border rounded-card p-3 bg-black/40 flex items-center justify-between text-xs";
+            item.innerHTML = `
+              <div>
+                <span class="font-medium text-white block">${pm.matchName}</span>
+                <span class="text-iron">Posición: ${pm.position}.º lugar</span>
+              </div>
+              <div class="flex items-center gap-3 text-smoke font-mono">
+                <span>⭐ ${pm.stars}</span>
+                <span>🪙 ${pm.coins}</span>
+              </div>
+            `;
+            listElem.appendChild(item);
+          });
+
+          if (playerMatches.length > 1 && !playerMatches.some(p => p.isFinal)) {
+            const note = document.createElement('p');
+            note.className = "text-[11px] text-iron italic pt-1";
+            note.textContent = "* Para la clasificación general se toma en cuenta únicamente la partida con mejor rendimiento.";
+            listElem.appendChild(note);
+          }
+        }
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      };
+
+      document.getElementById('btnCloseModal').addEventListener('click', () => {
+        document.getElementById('playerHistoryModal').classList.add('hidden');
+        document.getElementById('playerHistoryModal').classList.remove('flex');
+      });
+
+      document.getElementById('btnModalCloseAction').addEventListener('click', () => {
+        document.getElementById('playerHistoryModal').classList.add('hidden');
+        document.getElementById('playerHistoryModal').classList.remove('flex');
+      });
+
+      document.getElementById('btnResetTournament').addEventListener('click', resetTournament);
+
+      // INICIALIZACIÓN
+      loadState();
+      updateRegistrationUI();
+      renderGroupsUI();
+      renderMatchForms();
+      updateExtraPlayerUI();
+      updateStandingsUI();
+      updateFinalistsUI();
+      renderGrandFinalForm();
+      updateChampionUI();
+      renderHistory();
+
+    })();
+  </script>
+</body>
+</html>
