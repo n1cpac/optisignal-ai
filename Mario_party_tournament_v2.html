@@ -1069,7 +1069,7 @@
           });
 
           if (activeCount > 0 && elapsed < 4000) {
-            animationFrame = requestAnimationFrame(render);
+            animationFrame = confettiFrame = requestAnimationFrame(render);
           } else {
             cancelAnimationFrame(animationFrame);
             ctx.clearRect(0, 0, width, height);
