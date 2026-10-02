@@ -24,6 +24,17 @@
           fontFamily: {
             sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif']
           },
+          fontSize: {
+            '19px': ['19px', { lineHeight: '1.3' }],
+            '21px': ['21px', { lineHeight: '1.3' }],
+            '26px': ['26px', { lineHeight: '1.2' }],
+            '35px': ['35px', { lineHeight: '1.1' }],
+            '47px': ['47px', { lineHeight: '1' }],
+            '53px': ['53px', { lineHeight: '1' }]
+          },
+          spacing: {
+            '18': '4.5rem'
+          },
           borderRadius: {
             'card': '17.6px',
             'pill': '9999px'
@@ -170,19 +181,7 @@
       animation: countPulse 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
-    /* ===== Correcciones y pulido visual ===== */
     :root { color-scheme: dark; }
-
-    /* Escala tipográfica usada en el HTML (estas clases no existen en Tailwind por defecto) */
-    .text-19px { font-size: 19px; line-height: 1.3; }
-    .text-21px { font-size: 21px; line-height: 1.3; }
-    .text-26px { font-size: 26px; line-height: 1.2; }
-    .text-35px { font-size: 35px; line-height: 1.1; }
-    .text-47px { font-size: 47px; line-height: 1; }
-    .text-53px { font-size: 53px; line-height: 1; }
-    .h-18 { height: 4.5rem; }
-    @media (min-width: 640px) { .sm\:text-53px { font-size: 53px; line-height: 1; } }
-    @media (min-width: 768px) { .md\:text-26px { font-size: 26px; line-height: 1.2; } }
 
     body {
       background:
@@ -190,83 +189,53 @@
         var(--color-carbon-canvas);
       background-attachment: fixed;
     }
-    ::selection { background: #ffffff; color: #000000; }
 
-    /* Las secciones no quedan tapadas por el header fijo al hacer scroll */
     section { scroll-margin-top: 96px; }
-    main > section h2 { text-wrap: balance; }
 
-    :focus-visible { outline: 2px solid rgba(255, 255, 255, 0.75); outline-offset: 2px; }
-
-    /* Botones */
-    .pill-btn { cursor: pointer; user-select: none; }
-    .pill-btn:active:not(:disabled) { transform: translateY(0) scale(0.98); }
-    .pill-btn-primary:hover:not(:disabled) { box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08); }
-    button:disabled { cursor: not-allowed; }
-
-    /* Tarjetas */
-    .card-surface {
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0) 60%), var(--color-carbon-canvas);
-      transition: border-color 0.2s ease;
+    :focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.75);
+      outline-offset: 2px;
     }
-    .card-surface:hover { border-color: rgba(229, 231, 235, 0.22); }
-    @media (max-width: 640px) { .card-surface { padding: 18px; } }
 
-    .tag-pill { white-space: nowrap; }
-    .tag-pill-winner { box-shadow: 0 0 18px rgba(255, 255, 255, 0.18); }
+    .pill-btn:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 
-    /* Divisores de la tabla: Tailwind usa gris sólido por defecto, aquí se suavizan */
-    .divide-y.hairline-divider > * + * { border-color: rgba(229, 231, 235, 0.08); }
-    #standingsTableBody tr:first-child td { color: #ffffff; font-weight: 600; }
-    #standingsTableBody td { white-space: nowrap; }
+    .card-surface { transition: border-color 0.2s ease, background-color 0.2s ease; }
+    .card-surface:hover { border-color: rgba(229, 231, 235, 0.2); }
 
-    /* Inputs numéricos y selects coherentes con el tema */
+    /* Inputs numéricos sin flechas y selects coherentes */
     input[type=number]::-webkit-outer-spin-button,
     input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; text-align: center; }
+    select { cursor: pointer; }
     input:disabled { opacity: 0.4; cursor: not-allowed; }
-    select {
-      -webkit-appearance: none;
-      appearance: none;
-      cursor: pointer;
-      padding-right: 24px !important;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 9px center;
+
+    /* Toasts */
+    .toast {
+      pointer-events: auto;
+      background: #0a0a0a;
+      border: 1px solid rgba(229, 231, 235, 0.22);
+      color: #fff;
+      border-radius: 9999px;
+      padding: 10px 18px;
+      font-size: 13px;
+      letter-spacing: -0.2px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
     }
-    select option { background: #0a0a0a; color: #ffffff; }
+    .toast.toast-show { opacity: 1; transform: translateY(0); }
+    .toast.toast-error { border-color: rgba(255, 255, 255, 0.6); font-weight: 500; }
 
-    /* Chips de jugadores */
-    #playerChipsContainer > div { transition: border-color 0.15s ease, transform 0.15s ease; }
-    #playerChipsContainer > div:hover { border-color: rgba(255, 255, 255, 0.4); transform: translateY(-1px); }
-
-    /* Filas de grupos */
-    #group1List li, #group2List li, #group3List li { padding-top: 6px; padding-bottom: 6px; }
-
-    /* Animaciones de revelación (se activan al quitar .hidden) */
+    /* Aparición suave de bloques revelados */
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(12px); }
+      from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    #standingsTableContainer:not(.hidden),
-    #extraSelectionResultBox:not(.hidden),
-    #secChampion:not(.hidden),
-    #finalistsCardsGrid:not(.hidden) > * { animation: fadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
-    #finalistsCardsGrid:not(.hidden) > *:nth-child(2) { animation-delay: 0.08s; }
-    #finalistsCardsGrid:not(.hidden) > *:nth-child(3) { animation-delay: 0.16s; }
-    #finalistsCardsGrid:not(.hidden) > *:nth-child(4) { animation-delay: 0.24s; }
-    #playerHistoryModal.flex > .card-surface { animation: fadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
-
-    /* Cuenta regresiva y campeón con brillo */
-    #expCountdown { text-shadow: 0 0 40px rgba(255, 255, 255, 0.35); }
-    @keyframes glow {
-      0%, 100% { text-shadow: 0 0 24px rgba(255, 255, 255, 0.15); }
-      50% { text-shadow: 0 0 48px rgba(255, 255, 255, 0.4); }
-    }
-    #championNameDisplay { animation: glow 3s ease-in-out infinite; word-break: break-word; }
+    .animate-fade-up { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
     }
 
     /* Simple custom scrollbars */
@@ -288,8 +257,12 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
+  <!-- NOTIFICACIONES -->
+  <div id="toastContainer" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-2 pointer-events-none" aria-live="polite"></div>
+
   <!-- OVERLAY DE EXPECTATIVA CON CUENTA REGRESIVA Y CONFETI -->
-  <div id="expectationOverlay" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md hidden flex-col items-center justify-center p-6 text-center select-none">
+  <div id="expectationOverlay" role="dialog" aria-modal="true" aria-labelledby="expTitle" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md hidden flex-col items-center justify-center p-6 text-center select-none">
+    <button id="btnSkipExpectation" type="button" class="absolute top-5 right-5 text-xs text-iron hover:text-white px-4 py-2 rounded-pill hairline-border hover:border-white/40 transition">Saltar (Esc)</button>
     <div class="max-w-md w-full flex flex-col items-center space-y-6">
       <div id="expCategory" class="text-xs uppercase tracking-widest text-iron">PROCESO EN CURSO</div>
       <h3 id="expTitle" class="text-21px md:text-26px tracking-heading font-normal text-white">Determinando resultado</h3>
@@ -364,7 +337,7 @@
             Agregar jugador
           </button>
           <button type="button" id="btnLoadDefaults" class="pill-btn pill-btn-secondary whitespace-nowrap text-xs">
-            Cargar 11 oficiales
+            Completar con personajes
           </button>
         </form>
 
@@ -523,7 +496,7 @@
               <div class="flex items-start justify-between">
                 <div>
                   <div class="text-sm font-medium text-white tracking-body-sm">Opción A: Sorteo aleatorio</div>
-                  <div class="text-xs text-iron mt-1">Sorteo entre los 8 jugadores de las Partidas 1 y 2.</div>
+                  <div class="text-xs text-iron mt-1">Sorteo entre los 6 jugadores no ganadores de las Partidas 1 y 2 (los ganadores ya están en la final).</div>
                 </div>
                 <input type="radio" name="fourthPlayerMethod" value="random" class="mt-1 accent-white" checked>
               </div>
@@ -872,6 +845,33 @@
       'use strict';
 
       const STORAGE_KEY = 'MP_JAMBOREE_TOURNAMENT_V2';
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // Escapa texto antes de insertarlo con innerHTML (evita XSS y nombres con comillas rotos)
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      }
+
+      function clampInt(value, min, max) {
+        const n = parseInt(value, 10);
+        return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : 0;
+      }
+
+      // Notificación no bloqueante (reemplaza alert)
+      function toast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        const el = document.createElement('div');
+        el.className = 'toast' + (type === 'error' ? ' toast-error' : '');
+        el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        el.textContent = message;
+        container.appendChild(el);
+        requestAnimationFrame(() => el.classList.add('toast-show'));
+        setTimeout(() => {
+          el.classList.remove('toast-show');
+          setTimeout(() => el.remove(), 300);
+        }, 3200);
+      }
 
       // 11 Personajes oficiales de Mario Party Jamboree
       const DEFAULT_PLAYERS = [
@@ -909,8 +909,12 @@
         try {
           const raw = localStorage.getItem(STORAGE_KEY);
           if (raw) {
-            const parsed = JSON.parse(raw);
-            state = Object.assign(state, parsed);
+            const parsed = JSON.parse(raw) || {};
+            state = Object.assign(state, parsed, {
+              groups: Object.assign({ group1: [], group2: [], group3: [] }, parsed.groups || {}),
+              matches: Object.assign({ match1: null, match2: null, match3: null, final: null }, parsed.matches || {})
+            });
+            if (!Array.isArray(state.players)) state.players = [];
           }
         } catch (e) {
           console.error("Error al cargar estado de localStorage", e);
@@ -936,8 +940,14 @@
          ----------------------------------------------------------- */
       let expInterval = null;
       let shuffleInterval = null;
+      let expBusy = false;
+      let expFinish = null;
 
       function triggerExpectation({ category = "PROCESO", title = "Procesando", shuffleNames = [], duration = 5, onComplete }) {
+        if (expBusy) return;
+        expBusy = true;
+        let expDone = false;
+        document.body.style.overflow = 'hidden';
         const overlay = document.getElementById('expectationOverlay');
         const catElem = document.getElementById('expCategory');
         const titleElem = document.getElementById('expTitle');
@@ -971,31 +981,42 @@
             void countElem.offsetWidth; // Reflow
             countElem.classList.add('animate-count-pulse');
           } else {
-            clearInterval(expInterval);
-            clearInterval(shuffleInterval);
-            countElem.textContent = "✓";
-            subElem.textContent = "Finalizado.";
-            
-            // Disparar confeti monocromático
-            launchMonochromeConfetti();
-
-            setTimeout(() => {
-              overlay.classList.remove('flex');
-              overlay.classList.add('hidden');
-              if (typeof onComplete === 'function') {
-                onComplete();
-              }
-            }, 600);
+            expFinish();
           }
         }, 1000);
+
+        // Cierre único (por fin de cuenta o por "Saltar")
+        expFinish = () => {
+          if (expDone) return;
+          expDone = true;
+          clearInterval(expInterval);
+          clearInterval(shuffleInterval);
+          countElem.textContent = "✓";
+          subElem.textContent = "Finalizado.";
+          launchMonochromeConfetti();
+
+          setTimeout(() => {
+            overlay.classList.remove('flex');
+            overlay.classList.add('hidden');
+            document.body.style.overflow = '';
+            expBusy = false;
+            expFinish = null;
+            if (typeof onComplete === 'function') {
+              onComplete();
+            }
+          }, 500);
+        };
       }
 
       /* -----------------------------------------------------------
          CONFETI MONOCROMÁTICO (CANVAS NATIVO)
          ----------------------------------------------------------- */
+      let confettiFrame = null;
+
       function launchMonochromeConfetti() {
         const canvas = document.getElementById('confettiCanvas');
-        if (!canvas) return;
+        if (!canvas || reduceMotion) return;
+        cancelAnimationFrame(confettiFrame);
         const ctx = canvas.getContext('2d');
         canvas.classList.remove('hidden');
 
@@ -1050,7 +1071,7 @@
           });
 
           if (activeCount > 0 && elapsed < 4000) {
-            animationFrame = requestAnimationFrame(render);
+            animationFrame = confettiFrame = requestAnimationFrame(render);
           } else {
             cancelAnimationFrame(animationFrame);
             ctx.clearRect(0, 0, width, height);
