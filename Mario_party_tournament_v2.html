@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Gestor de torneo de Mario Party Jamboree: registro, sorteo de grupos, partidas, clasificación y gran final.">
   <title>Mario Party Jamboree — Torneo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -802,14 +804,14 @@
   </main>
 
   <!-- MODAL: HISTORIAL INDIVIDUAL DE JUGADOR -->
-  <div id="playerHistoryModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+  <div id="playerHistoryModal" role="dialog" aria-modal="true" aria-labelledby="modalPlayerName" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="card-surface max-w-lg w-full space-y-5 border-white/20">
       <div class="flex items-start justify-between border-b hairline-divider pb-3">
         <div>
           <span class="text-xs text-iron uppercase tracking-widest">Ficha de jugador</span>
           <h3 id="modalPlayerName" class="text-21px tracking-heading-sm font-normal text-white mt-0.5">—</h3>
         </div>
-        <button id="btnCloseModal" class="text-iron hover:text-white p-1 text-sm font-mono">
+        <button id="btnCloseModal" type="button" aria-label="Cerrar" class="text-iron hover:text-white w-8 h-8 rounded-full hairline-border hover:border-white/40 flex items-center justify-center text-sm font-mono transition">
           ✕
         </button>
       </div>
