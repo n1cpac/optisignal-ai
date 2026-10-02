@@ -907,8 +907,12 @@
         try {
           const raw = localStorage.getItem(STORAGE_KEY);
           if (raw) {
-            const parsed = JSON.parse(raw);
-            state = Object.assign(state, parsed);
+            const parsed = JSON.parse(raw) || {};
+            state = Object.assign(state, parsed, {
+              groups: Object.assign({ group1: [], group2: [], group3: [] }, parsed.groups || {}),
+              matches: Object.assign({ match1: null, match2: null, match3: null, final: null }, parsed.matches || {})
+            });
+            if (!Array.isArray(state.players)) state.players = [];
           }
         } catch (e) {
           console.error("Error al cargar estado de localStorage", e);
