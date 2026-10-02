@@ -979,23 +979,31 @@
             void countElem.offsetWidth; // Reflow
             countElem.classList.add('animate-count-pulse');
           } else {
-            clearInterval(expInterval);
-            clearInterval(shuffleInterval);
-            countElem.textContent = "✓";
-            subElem.textContent = "Finalizado.";
-            
-            // Disparar confeti monocromático
-            launchMonochromeConfetti();
-
-            setTimeout(() => {
-              overlay.classList.remove('flex');
-              overlay.classList.add('hidden');
-              if (typeof onComplete === 'function') {
-                onComplete();
-              }
-            }, 600);
+            expFinish();
           }
         }, 1000);
+
+        // Cierre único (por fin de cuenta o por "Saltar")
+        expFinish = () => {
+          if (expDone) return;
+          expDone = true;
+          clearInterval(expInterval);
+          clearInterval(shuffleInterval);
+          countElem.textContent = "✓";
+          subElem.textContent = "Finalizado.";
+          launchMonochromeConfetti();
+
+          setTimeout(() => {
+            overlay.classList.remove('flex');
+            overlay.classList.add('hidden');
+            document.body.style.overflow = '';
+            expBusy = false;
+            expFinish = null;
+            if (typeof onComplete === 'function') {
+              onComplete();
+            }
+          }, 500);
+        };
       }
 
       /* -----------------------------------------------------------
