@@ -1,0 +1,4 @@
+/* Estilos globales minimos. El diseno visual se afina despues. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; font-family: system-ui, "Segoe UI", sans-serif; }
+app-root { display: block; height: 100%; }
