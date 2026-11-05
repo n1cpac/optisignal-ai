@@ -1,1 +1,11 @@
 # Backend dependencies will be added here
+fastapi
+numpy
+opencv-python-headless
+pyyaml
+ultralytics
+uvicorn
+
+# Tests
+httpx
+pytest

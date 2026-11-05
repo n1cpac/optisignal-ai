@@ -44,6 +44,16 @@ tools/aligerar_geojson.py              script para regenerar el GeoJSON
 
 ## Como correr
 
+Primero el backend, desde la carpeta `backend/` del repositorio (Python 3.11):
+
+```bash
+py -3.11 -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python -m uvicorn app.main:app --port 8000 --timeout-graceful-shutdown 2
+```
+
+Luego el panel, que envia sus peticiones al backend mediante `proxy.conf.json`:
+
 ```bash
 npm install
 npm start
@@ -52,10 +62,10 @@ npm start
 Abrir http://localhost:4200. La primera carga del mapa tarda unos segundos porque la malla vial
 tiene casi 137.000 tramos (aparece el aviso "Cargando malla vial...").
 
-## Backend simulado
+## Backend
 
-`USE_MOCK_API = true` en `src/app/core/mock-api.config.ts` activa un interceptor que responde con
-datos falsos. Ponerlo en `false` cuando exista el backend real.
+Las camaras y los semaforos se configuran en `semaforos` de `CONFIG_PARAMETERS.yaml`. Para ver el panel
+sin backend, `USE_MOCK_API = true` en `src/app/core/mock-api.config.ts` activa un interceptor con datos falsos.
 
 Endpoints que el frontend espera:
 
@@ -64,10 +74,13 @@ Endpoints que el frontend espera:
 | GET | `/semaforos` | lista de `Semaforo` (consulta cada 1,5 s) |
 | GET | `/reportes` | lista de `Reporte` (consulta cada 5 s) |
 | POST | `/reportes/envio` | recibe `EnvioReporte`, responde `{ "ok": true }` |
+| GET | `/camaras/{id}/mjpeg` | video anotado con la deteccion de YOLO |
 
 Detalles de `Semaforo` (ver `core/models/semaforo.model.ts`):
 
 - `estadoElectrico`: `rojo`, `amarillo`, `verde` o `apagado`, segun el sistema electrico del semaforo.
+- `estadoVisual`: lo que ve la camara con YOLO + HSV. Ademas de las luces puede ser `multiple`,
+  `sin_deteccion`, `desconocido` o `sin_senal`. `lucesDetectadas` y `confianza` lo detallan.
 - `estadoOperativo`: `normal` o `anomalia` (define el color del punto en el mapa y los totales).
 - `fuenteImagen`: `obs` muestra la camara virtual de OBS en el navegador; `url` (por defecto) muestra `imagenUrl`.
 - `imagenUrl`: imagen en vivo cuando la fuente es `url`. Puede ser una transmision MJPEG (el navegador la

@@ -5,7 +5,8 @@
 # YOLO DETECTOR CONFIGURATION
 # ============================================================================
 detector:
-  model_path: "models/best.pt"
+  model_path: "models/lisa_best.pt"  # Beat bosch_best.pt on the Blender renders (9/20 vs 2/20)
+  inference_interval_seconds: 0.25   # Time per round over all cameras
   confidence_threshold: 0.5          # Minimum confidence for detection
   iou_threshold: 0.45                # IoU threshold for NMS
   device: "cpu"                      # 'cpu' or 'cuda' (GPU)
@@ -16,31 +17,31 @@ detector:
 # COLOR CLASSIFICATION (HSV THRESHOLDS)
 # ============================================================================
 color_classification:
+  # Calibrated on the Blender renders: lit lenses are overexposed (pastel, S around 20-60),
+  # so saturation must stay low. Hue 10-16 stays out on purpose: housings lit by
+  # sunset light sit at H=12 and would read as a lit lens.
+
   # RED light thresholds (HSV space)
   red:
-    hue_range: [0, 10]               # Hue range for red (0-180 in OpenCV)
-    saturation_min: 100              # Minimum saturation (0-255)
-    brightness_min: 100              # Minimum brightness/Value (0-255)
-    pixel_threshold: 0.05            # Minimum % of pixels to consider light ON
+    hue_ranges: [[0, 9], [170, 179]] # Red wraps around the hue circle (0-179 in OpenCV)
+    saturation_min: 15               # Minimum saturation (0-255)
+    brightness_min: 120              # Minimum brightness/Value (0-255)
 
   # YELLOW light thresholds (HSV space)
   yellow:
-    hue_range: [20, 40]              # Hue range for yellow
-    saturation_min: 100              # Minimum saturation
-    brightness_min: 100              # Minimum brightness/Value
-    pixel_threshold: 0.05            # Minimum % of pixels to consider light ON
+    hue_ranges: [[17, 40]]           # Hue range for yellow
+    saturation_min: 15               # Minimum saturation
+    brightness_min: 120              # Minimum brightness/Value
 
   # GREEN light thresholds (HSV space)
   green:
-    hue_range: [50, 90]              # Hue range for green
-    saturation_min: 100              # Minimum saturation
-    brightness_min: 100              # Minimum brightness/Value
-    pixel_threshold: 0.05            # Minimum % of pixels to consider light ON
+    hue_ranges: [[50, 90]]           # Hue range for green
+    saturation_min: 15               # Minimum saturation
+    brightness_min: 120              # Minimum brightness/Value
 
   # General thresholds
-  activation_threshold: 0.05         # theta_act: % of pixels to consider light active
-  brightness_threshold: 100          # V_min: minimum brightness for valid detection
-  saturation_threshold: 100          # S_min: minimum saturation for valid detection
+  activation_threshold: 0.05         # theta_act: fraction of a lens zone's pixels to consider it ON
+  min_roi_height: 12                 # Below this, thirds are too small to read: state is UNKNOWN
 
 # ============================================================================
 # TRAFFIC LIGHT SEQUENCE TIMING (COLOMBIAN STANDARD)
@@ -104,6 +105,31 @@ camera:
   fps: 30
   frame_buffer_size: 5               # Number of frames to buffer
   timeout_seconds: 5                 # Timeout for camera connection
+
+# ============================================================================
+# MONITORED TRAFFIC LIGHTS
+# ============================================================================
+# source: repo-relative image or video path (videos loop), or a device index as a number.
+# To use Blender live, set a source to the OBS Virtual Camera index.
+# electrico and falla are placeholders until Blender publishes the simulated state.
+semaforos:
+  - {id: s1, nombre: "AC 13 con CL 13", lat: 4.60357, lng: -74.07992, electrico: rojo, falla: false,
+     source: "frontend/smaforos blender/images/img_00000.png"}
+  - {id: s2, nombre: "AC 72 con KR 13", lat: 4.65843, lng: -74.06038, electrico: verde, falla: false,
+     source: "frontend/smaforos blender/images/img_00019.png"}
+  # Discrepancy case: the electrical system says green while the image shows red
+  - {id: s3, nombre: "AK 7 con CL 117", lat: 4.69469, lng: -74.03265, electrico: verde, falla: true,
+     source: "frontend/smaforos blender/images/img_00006.png"}
+  - {id: s4, nombre: "AC 145 con KR 96", lat: 4.74077, lng: -74.08894, electrico: amarillo, falla: false,
+     source: "frontend/smaforos blender/images/img_00011.png"}
+  - {id: s5, nombre: "AC 63 con KR 103A", lat: 4.69513, lng: -74.12479, electrico: rojo, falla: false,
+     source: "frontend/smaforos blender/images/img_00018.png"}
+  - {id: s6, nombre: "AK 97 con CL 16I", lat: 4.66986, lng: -74.14509, electrico: apagado, falla: true,
+     source: "frontend/smaforos blender/images/img_00010.png"}
+  - {id: s7, nombre: "AC 6 con TV 78C", lat: 4.6323, lng: -74.14954, electrico: rojo, falla: true,
+     source: "frontend/smaforos blender/images/img_00005.png"}
+  - {id: s8, nombre: "AK 80 con CL 59 S", lat: 4.60866, lng: -74.18121, electrico: amarillo, falla: false,
+     source: "frontend/smaforos blender/images/img_00016.png"}
 
 # ============================================================================
 # DATABASE CONFIGURATION (SQLite)

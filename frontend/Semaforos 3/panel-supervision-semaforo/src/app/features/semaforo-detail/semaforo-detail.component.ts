@@ -1,6 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, PercentPipe } from '@angular/common';
 
+import { EstadoVisual } from '../../core/models/semaforo.model';
 import { PanelStateService } from '../../core/services/panel-state.service';
 import { TrafficLightComponent } from '../../shared/components/traffic-light/traffic-light.component';
 import { LiveCameraComponent } from '../../shared/components/live-camera/live-camera.component';
@@ -9,7 +10,7 @@ import { ReportFormComponent } from './report-form.component';
 @Component({
   selector: 'app-semaforo-detail',
   standalone: true,
-  imports: [DatePipe, TrafficLightComponent, LiveCameraComponent, ReportFormComponent],
+  imports: [DatePipe, PercentPipe, TrafficLightComponent, LiveCameraComponent, ReportFormComponent],
   template: `
     @if (state.seleccionado(); as s) {
       <h2>{{ s.nombre }}</h2>
@@ -25,6 +26,20 @@ import { ReportFormComponent } from './report-form.component';
           <small>Actualizado {{ s.ultimaActualizacion | date: 'HH:mm:ss' }}</small>
         </div>
       </section>
+
+      @if (s.estadoVisual; as visual) {
+        <section class="electrico">
+          <app-traffic-light [luces]="s.lucesDetectadas ?? []" />
+          <div class="rotulos">
+            <strong>Detección YOLO</strong>
+            <span>Lo que ve la cámara</span>
+            <span class="visual">{{ etiquetasVisual[visual] }}</span>
+            @if (s.confianza != null) {
+              <small>Confianza {{ s.confianza | percent }}</small>
+            }
+          </div>
+        </section>
+      }
 
       <section class="imagen">
         @if (s.fuenteImagen === 'obs') {
@@ -46,6 +61,7 @@ import { ReportFormComponent } from './report-form.component';
     .rotulos { display: flex; flex-direction: column; gap: 6px; }
     .operativo { color: #76c410; font-weight: 600; }
     .operativo.falla { color: #ff6a5c; }
+    .visual { font-weight: 600; }
     small { color: #aaa; }
     .imagen { background: #fff; padding: 8px; }
     img { display: block; width: 100%; height: auto; }
@@ -54,6 +70,17 @@ import { ReportFormComponent } from './report-form.component';
 })
 export class SemaforoDetailComponent {
   protected state = inject(PanelStateService);
+
+  protected readonly etiquetasVisual: Record<EstadoVisual, string> = {
+    rojo: 'Rojo',
+    amarillo: 'Amarillo',
+    verde: 'Verde',
+    apagado: 'Apagado',
+    multiple: 'Varias luces encendidas',
+    sin_deteccion: 'Semáforo no detectado',
+    desconocido: 'No se puede determinar',
+    sin_senal: 'Sin señal de cámara'
+  };
 
   /** La URL se usa tal cual la entrega el backend (captura nueva o transmision MJPEG). */
   protected imagenSrc = computed(() => this.state.seleccionado()?.imagenUrl ?? '');
