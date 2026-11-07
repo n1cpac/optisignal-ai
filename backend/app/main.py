@@ -30,12 +30,13 @@ app = FastAPI(title="OptiSignal", lifespan=lifespan)
 
 
 def to_semaforo(config: dict, result: VisionResult | None) -> Semaforo:
+    tiene_anomalia = (result.anomalia_confirmada is not None) if (result and result.anomalia_confirmada) else config.get("falla", False)
     return Semaforo(
         id=config["id"],
         nombre=config["nombre"],
         lat=config["lat"],
         lng=config["lng"],
-        estadoOperativo="anomalia" if config["falla"] else "normal",
+        estadoOperativo="anomalia" if tiene_anomalia else "normal",
         estadoElectrico=config["electrico"],
         estadoVisual=result.estado_visual if result else "sin_senal",
         lucesDetectadas=result.luces if result else [],

@@ -1,189 +1,162 @@
-# Configuration Parameters for OptiSignal-AI
-# This file centralizes all tunable parameters for the traffic light detection system
-
-# ============================================================================
-# YOLO DETECTOR CONFIGURATION
-# ============================================================================
 detector:
-  model_path: "models/lisa_best.pt"  # Beat bosch_best.pt on the Blender renders (9/20 vs 2/20)
-  inference_interval_seconds: 0.25   # Time per round over all cameras
-  confidence_threshold: 0.5          # Minimum confidence for detection
-  iou_threshold: 0.45                # IoU threshold for NMS
-  device: "cpu"                      # 'cpu' or 'cuda' (GPU)
-  inference_timeout_ms: 35           # Maximum inference time per frame
-  input_size: 640                    # YOLO input resolution
-
-# ============================================================================
-# COLOR CLASSIFICATION (HSV THRESHOLDS)
-# ============================================================================
+  model_path: models/lisa_best.pt
+  inference_interval_seconds: 0.25
+  confidence_threshold: 0.25
+  iou_threshold: 0.45
+  device: cpu
+  inference_timeout_ms: 35
+  input_size: 640
 color_classification:
-  # Calibrated on the Blender renders: lit lenses are overexposed (pastel, S around 20-60),
-  # so saturation must stay low. Hue 10-16 stays out on purpose: housings lit by
-  # sunset light sit at H=12 and would read as a lit lens.
-
-  # RED light thresholds (HSV space)
   red:
-    hue_ranges: [[0, 9], [170, 179]] # Red wraps around the hue circle (0-179 in OpenCV)
-    saturation_min: 15               # Minimum saturation (0-255)
-    brightness_min: 120              # Minimum brightness/Value (0-255)
-
-  # YELLOW light thresholds (HSV space)
+    hue_ranges:
+    - - 0
+      - 9
+    - - 170
+      - 179
+    saturation_min: 15
+    brightness_min: 120
   yellow:
-    hue_ranges: [[17, 40]]           # Hue range for yellow
-    saturation_min: 15               # Minimum saturation
-    brightness_min: 120              # Minimum brightness/Value
-
-  # GREEN light thresholds (HSV space)
+    hue_ranges:
+    - - 17
+      - 40
+    saturation_min: 15
+    brightness_min: 120
   green:
-    hue_ranges: [[50, 90]]           # Hue range for green
-    saturation_min: 15               # Minimum saturation
-    brightness_min: 120              # Minimum brightness/Value
-
-  # General thresholds
-  activation_threshold: 0.05         # theta_act: fraction of a lens zone's pixels to consider it ON
-  min_roi_height: 12                 # Below this, thirds are too small to read: state is UNKNOWN
-
-# ============================================================================
-# TRAFFIC LIGHT SEQUENCE TIMING (COLOMBIAN STANDARD)
-# ============================================================================
+    hue_ranges:
+    - - 50
+      - 90
+    saturation_min: 15
+    brightness_min: 120
+  activation_threshold: 0.05
+  min_roi_height: 12
 traffic_light_timing:
-  # Minimum duration for each state (seconds)
   red_min: 30
   yellow_prep_min: 3
   green_min: 20
   yellow_desp_min: 3
-
-  # Maximum duration for each state (seconds) - tau_max
   red_max: 120
   yellow_prep_max: 5
   green_max: 90
   yellow_desp_max: 5
-
-  # Phase type identification
-  yellow_prep_duration: 3            # Expected duration of preparation yellow
-  yellow_desp_duration: 3            # Expected duration of despeje yellow
-
-# ============================================================================
-# ANOMALY DETECTION PARAMETERS
-# ============================================================================
+  yellow_prep_duration: 3
+  yellow_desp_duration: 3
 anomaly_detection:
-  # Confirmation window: minimum consecutive frames to confirm anomaly
-  confirmation_frames: 8             # N: frames required to confirm anomaly
-  fps: 30                            # Frames per second (for time calculations)
-  confirmation_time_ms: 267          # ~8 frames / 30 FPS = 0.267 seconds
-
-  # Anomaly-specific thresholds
+  confirmation_frames: 8
+  fps: 30
+  confirmation_time_ms: 267
   all_lights_off:
-    pixel_threshold: 0.05            # All lights below this threshold
+    pixel_threshold: 0.05
     confirmation_frames: 8
-
   multiple_lights_on:
-    min_lights_active: 2             # Number of lights active simultaneously
+    min_lights_active: 2
     confirmation_frames: 8
-
   invalid_transition:
     confirmation_frames: 8
-
   light_stuck:
-    confirmation_frames: 8           # Frames after exceeding tau_max
-
+    confirmation_frames: 8
   low_brightness:
-    brightness_threshold: 100        # V_min: minimum brightness
+    brightness_threshold: 100
     confirmation_frames: 8
-
   obstructed_light:
-    dark_pixel_threshold: 0.80       # % of dark pixels (V < 50) to consider obstructed
+    dark_pixel_threshold: 0.8
     confirmation_frames: 8
-
-# ============================================================================
-# CAMERA AND VIDEO INPUT
-# ============================================================================
 camera:
-  source: 0                          # 0 for webcam, or path to video file
+  source: 0
   resolution_width: 1280
   resolution_height: 720
   fps: 30
-  frame_buffer_size: 5               # Number of frames to buffer
-  timeout_seconds: 5                 # Timeout for camera connection
-
-# ============================================================================
-# MONITORED TRAFFIC LIGHTS
-# ============================================================================
-# source: repo-relative image or video path (videos loop), or a device index as a number.
-# To use Blender live, set a source to the OBS Virtual Camera index.
-# electrico and falla are placeholders until Blender publishes the simulated state.
+  frame_buffer_size: 5
+  timeout_seconds: 5
 semaforos:
-  - {id: s1, nombre: "AC 13 con CL 13", lat: 4.60357, lng: -74.07992, electrico: rojo, falla: false,
-     source: "frontend/smaforos blender/images/img_00000.png"}
-  - {id: s2, nombre: "AC 72 con KR 13", lat: 4.65843, lng: -74.06038, electrico: verde, falla: false,
-     source: "frontend/smaforos blender/images/img_00019.png"}
-  # Discrepancy case: the electrical system says green while the image shows red
-  - {id: s3, nombre: "AK 7 con CL 117", lat: 4.69469, lng: -74.03265, electrico: verde, falla: true,
-     source: "frontend/smaforos blender/images/img_00006.png"}
-  - {id: s4, nombre: "AC 145 con KR 96", lat: 4.74077, lng: -74.08894, electrico: amarillo, falla: false,
-     source: "frontend/smaforos blender/images/img_00011.png"}
-  - {id: s5, nombre: "AC 63 con KR 103A", lat: 4.69513, lng: -74.12479, electrico: rojo, falla: false,
-     source: "frontend/smaforos blender/images/img_00018.png"}
-  - {id: s6, nombre: "AK 97 con CL 16I", lat: 4.66986, lng: -74.14509, electrico: apagado, falla: true,
-     source: "frontend/smaforos blender/images/img_00010.png"}
-  - {id: s7, nombre: "AC 6 con TV 78C", lat: 4.6323, lng: -74.14954, electrico: rojo, falla: true,
-     source: "frontend/smaforos blender/images/img_00005.png"}
-  - {id: s8, nombre: "AK 80 con CL 59 S", lat: 4.60866, lng: -74.18121, electrico: amarillo, falla: false,
-     source: "frontend/smaforos blender/images/img_00016.png"}
-
-# ============================================================================
-# DATABASE CONFIGURATION (SQLite)
-# ============================================================================
+- id: s1
+  nombre: AC 13 con CL 13
+  lat: 4.60357
+  lng: -74.07992
+  electrico: rojo
+  falla: false
+  source: data/test_videos/test1.mp4
+- id: s2
+  nombre: AC 72 con KR 13
+  lat: 4.65843
+  lng: -74.06038
+  electrico: verde
+  falla: false
+  source: frames video/e7d1a2a0-176e-488c-8b82-0934faf0502b.jpg
+- id: s3
+  nombre: AK 7 con CL 117
+  lat: 4.69469
+  lng: -74.03265
+  electrico: verde
+  falla: true
+  source: optisignal_ai_comercial_colombia_720p_24fps.mp4
+- id: s4
+  nombre: AC 145 con KR 96
+  lat: 4.74077
+  lng: -74.08894
+  electrico: amarillo
+  falla: false
+  source: frames video/e7d1a2a0-176e-488c-8b82-0934faf0502b.jpg
+- id: s5
+  nombre: AC 63 con KR 103A
+  lat: 4.69513
+  lng: -74.12479
+  electrico: rojo
+  falla: false
+  source: optisignal_ai_comercial_colombia_720p_24fps.mp4
+- id: s6
+  nombre: AK 97 con CL 16I
+  lat: 4.66986
+  lng: -74.14509
+  electrico: apagado
+  falla: true
+  source: frames video/e7d1a2a0-176e-488c-8b82-0934faf0502b.jpg
+- id: s7
+  nombre: AC 6 con TV 78C
+  lat: 4.6323
+  lng: -74.14954
+  electrico: rojo
+  falla: true
+  source: optisignal_ai_comercial_colombia_720p_24fps.mp4
+- id: s8
+  nombre: AK 80 con CL 59 S
+  lat: 4.60866
+  lng: -74.18121
+  electrico: amarillo
+  falla: false
+  source: frames video/e7d1a2a0-176e-488c-8b82-0934faf0502b.jpg
 database:
-  path: "./data/optisignal.db"
-  backup_path: "./data/backups/"
-  evidence_storage_path: "./data/evidence/"
-  max_evidence_size_mb: 5000         # Maximum storage for evidence images
-  retention_days: 90                 # Keep records for 90 days
-
-# ============================================================================
-# API AND FRONTEND COMMUNICATION
-# ============================================================================
+  path: ./data/optisignal.db
+  backup_path: ./data/backups/
+  evidence_storage_path: ./data/evidence/
+  max_evidence_size_mb: 5000
+  retention_days: 90
 api:
-  host: "0.0.0.0"
+  host: 0.0.0.0
   port: 8000
-  update_interval_ms: 1000           # Frontend polling interval
-  max_alerts_per_response: 100       # Limit alerts in API response
+  update_interval_ms: 1000
+  max_alerts_per_response: 100
   cors_origins:
-    - "http://localhost:4200"
-    - "http://localhost:80"
-
-# ============================================================================
-# LOGGING AND MONITORING
-# ============================================================================
+  - http://localhost:4200
+  - http://localhost:80
 logging:
-  level: "INFO"                      # DEBUG, INFO, WARNING, ERROR, CRITICAL
-  log_file: "./logs/optisignal.log"
+  level: INFO
+  log_file: ./logs/optisignal.log
   max_log_size_mb: 100
   backup_count: 5
   console_output: true
-
 monitoring:
   track_fps: true
   track_inference_time: true
   track_memory_usage: true
   performance_log_interval_seconds: 60
-
-# ============================================================================
-# SYSTEM HEALTH AND RECOVERY
-# ============================================================================
 system:
-  startup_delay_seconds: 2           # Delay before processing starts
-  recovery_timeout_seconds: 10       # Time to wait before recovery attempt
-  max_recovery_attempts: 3           # Maximum recovery attempts
+  startup_delay_seconds: 2
+  recovery_timeout_seconds: 10
+  max_recovery_attempts: 3
   graceful_shutdown_timeout_seconds: 5
-
-# ============================================================================
-# DEVELOPMENT AND TESTING
-# ============================================================================
 development:
   debug_mode: false
-  save_debug_frames: false           # Save frames with detections for debugging
-  debug_output_path: "./debug/"
-  simulate_anomalies: false          # For testing purposes
+  save_debug_frames: false
+  debug_output_path: ./debug/
+  simulate_anomalies: false
   test_mode: false

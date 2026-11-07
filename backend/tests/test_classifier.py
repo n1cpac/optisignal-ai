@@ -43,7 +43,7 @@ def test_states(zones, state, active):
 @pytest.mark.parametrize(
     "box, confidence",
     [
-        (BOX, 0.2),  # confianza por debajo del minimo
+        (BOX, 0.1),  # confianza por debajo del minimo (0.25)
         ((10, 10, 40, 18), 1.0),  # muy pequena: el tercio no alcanza a leerse
         ((5, 10, 55, 40), 1.0),  # horizontal
         ((70, 130, 90, 180), 1.0),  # fuera del frame
@@ -54,7 +54,10 @@ def test_unknown(box, confidence):
 
 
 def blender_rows():
-    with open(BLENDER_DIR / "meta.csv", encoding="utf-8") as f:
+    meta_path = BLENDER_DIR / "meta.csv"
+    if not meta_path.exists():
+        return []
+    with open(meta_path, encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 

@@ -45,6 +45,27 @@ def insert_reporte(envio: EnvioReporte, ubicacion: str) -> None:
         )
 
 
+def insert_alerta_sistema(semaforo_id: str, ubicacion: str, tipo_anomalia: str, detalle: str = "") -> None:
+    """Registra una alerta confirmada emitida automaticamente por la maquina de estados de vision."""
+    descripcion = f"[Alerta Automatica Vision] Falla: {tipo_anomalia}."
+    if detalle:
+        descripcion += f" {detalle}"
+    with closing(_connect()) as db, db:
+        # Evitar registrar alertas duplicadas continuas del mismo tipo para el mismo semaforo
+        ultimo = db.execute(
+            "SELECT descripcion FROM reportes WHERE semaforo_id = ? ORDER BY id DESC LIMIT 1",
+            (semaforo_id,),
+        ).fetchone()
+        if ultimo and tipo_anomalia in ultimo[0]:
+            return
+        db.execute(
+            "INSERT INTO reportes (semaforo_id, ubicacion, fecha, descripcion, coincide, destinatarios) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (semaforo_id, ubicacion, datetime.now(timezone.utc).isoformat(), descripcion,
+             0, json.dumps(["tecnicos", "transito"])),
+        )
+
+
 def list_reportes() -> list[Reporte]:
     with closing(_connect()) as db:
         rows = db.execute(
