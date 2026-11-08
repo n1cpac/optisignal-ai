@@ -17,7 +17,8 @@ export interface Semaforo {
   lat: number;
   lng: number;
   estadoOperativo: EstadoOperativo;
-  estadoElectrico: EstadoLuz; // deteccion del sistema electrico del semaforo
+  estadoElectrico: EstadoLuz | 'multiple'; // deteccion del sistema electrico del semaforo
+  lucesElectricas?: EstadoLuz[]; // luces encendidas segun el sistema electrico; solo el backend real
   estadoVisual?: EstadoVisual; // YOLO + HSV; solo lo entrega el backend real
   lucesDetectadas?: EstadoLuz[]; // lentes encendidos segun la camara
   confianza?: number | null; // confianza de YOLO, de 0 a 1

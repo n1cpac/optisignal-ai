@@ -1,5 +1,5 @@
 detector:
-  model_path: models/lisa_best.pt
+  model_path: models/bosch_best.pt  # New Blender scene, 96 renders: bosch 54/96 vs lisa 35/96
   inference_interval_seconds: 0.25
   confidence_threshold: 0.25
   iou_threshold: 0.45
@@ -41,9 +41,19 @@ traffic_light_timing:
   yellow_prep_duration: 3
   yellow_desp_duration: 3
 anomaly_detection:
-  confirmation_frames: 8
-  fps: 30
-  confirmation_time_ms: 267
+  # A new light state counts only after holding this long (filters flicker and one-frame errors).
+  state_confirmation_seconds: 1.0
+  # Losing sight of the light longer than this skips the next transition check. Keep
+  # state_confirmation_seconds + resync_after_seconds <= yellow_*_min, so a yellow is either
+  # confirmed or treated as lost from view.
+  resync_after_seconds: 2.0
+  # A traffic light sends one alert per scene. It alerts again only when the scene changes
+  # (mean gray difference of a 32x18 thumbnail above this) or as a reminder when its last alert
+  # has gone this long without being opened in the panel. Measured: a light change in the same
+  # Blender scene < 1, static OBS 0, distinct renders median 63. Real cameras reach ~11 from
+  # exposure changes alone: raise this to ~15 for them.
+  alert_new_scene_threshold: 3.0
+  alert_reminder_minutes: 30
   all_lights_off:
     pixel_threshold: 0.05
     confirmation_frames: 8
@@ -68,62 +78,52 @@ camera:
   frame_buffer_size: 5
   timeout_seconds: 5
 semaforos:
+# s1 is the only camera. A folder source takes a random render on every backend start;
+# its electrical state and fault come from the file name (scenario_NN_time_lights.png).
 - id: s1
   nombre: AC 13 con CL 13
   lat: 4.60357
   lng: -74.07992
   electrico: rojo
   falla: false
-  source: data/test_videos/test1.mp4
+  source: 0  # OBS Virtual Camera (Blender en vivo); para el video de prueba: data/test_videos/test1.mp4
 - id: s2
   nombre: AC 72 con KR 13
   lat: 4.65843
   lng: -74.06038
-  electrico: verde
-  falla: false
-  source: frames video/e7d1a2a0-176e-488c-8b82-0934faf0502b.jpg
+  source: frontend/smaforos blender/renders_escenarios
 - id: s3
   nombre: AK 7 con CL 117
   lat: 4.69469
   lng: -74.03265
-  electrico: verde
-  falla: true
-  source: optisignal_ai_comercial_colombia_720p_24fps.mp4
+  source: frontend/smaforos blender/renders_escenarios
 - id: s4
   nombre: AC 145 con KR 96
   lat: 4.74077
   lng: -74.08894
-  electrico: amarillo
-  falla: false
-  source: frames video/e7d1a2a0-176e-488c-8b82-0934faf0502b.jpg
+  source: frontend/smaforos blender/renders_escenarios
 - id: s5
   nombre: AC 63 con KR 103A
   lat: 4.69513
   lng: -74.12479
-  electrico: rojo
-  falla: false
-  source: optisignal_ai_comercial_colombia_720p_24fps.mp4
+  source: frontend/smaforos blender/renders_escenarios
 - id: s6
   nombre: AK 97 con CL 16I
   lat: 4.66986
   lng: -74.14509
-  electrico: apagado
-  falla: true
-  source: frames video/e7d1a2a0-176e-488c-8b82-0934faf0502b.jpg
+  source: frontend/smaforos blender/renders_escenarios
 - id: s7
   nombre: AC 6 con TV 78C
   lat: 4.6323
   lng: -74.14954
-  electrico: rojo
-  falla: true
-  source: optisignal_ai_comercial_colombia_720p_24fps.mp4
+  source: frontend/smaforos blender/renders_escenarios
 - id: s8
   nombre: AK 80 con CL 59 S
   lat: 4.60866
   lng: -74.18121
-  electrico: amarillo
-  falla: false
-  source: frames video/e7d1a2a0-176e-488c-8b82-0934faf0502b.jpg
+  source: frontend/smaforos blender/renders_escenarios
+# A history report shows one of these renders instead of the live camera (fixed per report)
+history_scenes: frontend/smaforos blender/renders_escenarios
 database:
   path: ./data/optisignal.db
   backup_path: ./data/backups/

@@ -1,0 +1,84 @@
+OPTISIGNAL - COMO EJECUTAR EL BACKEND Y EL PANEL
+================================================
+
+Se necesitan DOS terminales de PowerShell abiertas al mismo tiempo: una para el backend
+y otra para el panel. No cierres ninguna mientras uses el sistema.
+
+
+REQUISITOS (solo la primera vez)
+--------------------------------
+- Python 3.11  (comprobar con:  py -3.11 --version)
+- Node.js      (comprobar con:  node --version)
+- Para la camara en vivo: OBS abierto con "Iniciar camara virtual" activo, capturando Blender.
+
+
+1. BACKEND  (terminal 1)
+------------------------
+cd "D:\Trabajos\Universidad\vision comp\Proyecto_semaforos\optisignal-ai\backend"
+
+Solo la primera vez (crea el entorno e instala dependencias; tarda varios minutos):
+  py -3.11 -m venv .venv
+  .venv\Scripts\pip install -r requirements.txt
+
+Cada vez:
+  .venv\Scripts\python -m uvicorn app.main:app --port 8000 --timeout-graceful-shutdown 2
+
+Listo cuando aparece:  Uvicorn running on http://127.0.0.1:8000
+No abras http://127.0.0.1:8000 en el navegador: el backend solo entrega datos (muestra "Not Found").
+
+
+2. PANEL  (terminal 2)
+----------------------
+cd "D:\Trabajos\Universidad\vision comp\Proyecto_semaforos\optisignal-ai\frontend\Semaforos 3\panel-supervision-semaforo"
+
+Solo la primera vez:
+  npm install
+
+Cada vez:
+  npm start
+
+Listo cuando aparece:  Local: http://localhost:4200/
+
+
+3. ABRIR EL PANEL
+-----------------
+En el navegador:  http://localhost:4200
+(usa "localhost", no "127.0.0.1")
+
+- s1 (AC 13 con CL 13) es la camara en vivo de OBS/Blender. Haz clic en su punto del mapa.
+- s2 a s8 muestran un render al azar de "frontend\smaforos blender\renders_escenarios";
+  cambian cada vez que se reinicia el backend.
+- En la terminal 1 deben aparecer lineas "GET /semaforos 200" cada 1,5 s: el panel esta conectado.
+
+
+4. DETENER
+----------
+Ctrl+C en cada terminal. Si el backend no se cierra al primer intento, pulsa Ctrl+C otra vez.
+
+
+CAMBIOS FRECUENTES  (archivo CONFIG_PARAMETERS.yaml, en la raiz del proyecto)
+------------------------------------------------------------------------------
+Reinicia el backend despues de cualquier cambio en este archivo.
+
+- Usar el video de prueba en lugar de OBS: en s1 cambia
+      source: 0
+  por
+      source: data/test_videos/test1.mp4
+- Si OBS no aparece (s1 dice "Sin senal de camara"): verifica que la camara virtual este
+  iniciada en OBS, o prueba  source: 1  (otro indice de camara).
+- Modelo YOLO: detector > model_path  (models/bosch_best.pt o models/lisa_best.pt).
+
+
+PRUEBAS AUTOMATICAS  (opcional, terminal 1 con el backend detenido)
+--------------------------------------------------------------------
+cd "D:\Trabajos\Universidad\vision comp\Proyecto_semaforos\optisignal-ai\backend"
+.venv\Scripts\python -m pytest tests -q
+
+
+PROBLEMAS COMUNES
+-----------------
+- El mapa no muestra puntos: el backend no esta corriendo (revisa la terminal 1).
+- "Sin senal de camara" en s1: la camara virtual de OBS no esta iniciada.
+- El backend no arranca y menciona "renders": falta la carpeta
+  "frontend\smaforos blender\renders_escenarios".
+- Puerto ocupado: ya hay otro backend o panel abierto; cierralo con Ctrl+C.

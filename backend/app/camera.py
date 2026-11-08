@@ -24,7 +24,8 @@ class CameraFeed:
         self.timeout_seconds = timeout_seconds
         self._frame: Optional[np.ndarray] = None
         self._frame_time = 0.0
-        self._is_image = isinstance(source, str) and Path(source).suffix.lower() in IMAGE_SUFFIXES
+        self.is_image = isinstance(source, str) and Path(source).suffix.lower() in IMAGE_SUFFIXES
+        self.restarts = 0  # veces que un video volvio a empezar
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
 
@@ -37,16 +38,18 @@ class CameraFeed:
 
     def read(self) -> Optional[np.ndarray]:
         """Ultimo frame, o None si no hay senal: una camara trabada no debe verse como activa."""
-        if not self._is_image and time.monotonic() - self._frame_time > self.timeout_seconds:
+        if not self.is_image and time.monotonic() - self._frame_time > self.timeout_seconds:
             return None
         return self._frame
 
     def _run(self) -> None:
-        if self._is_image:
+        if self.is_image:
             self._load_image()
             return
         while not self._stop.is_set():
-            if not self._read_until_end():
+            if self._read_until_end():
+                self.restarts += 1
+            elif not self._stop.is_set():
                 logger.warning("Sin senal en la fuente %s", self.source)
                 self._stop.wait(RECONNECT_SECONDS)
 
@@ -61,6 +64,10 @@ class CameraFeed:
         """Lee hasta que la fuente termina. True si un video llego al final y debe repetirse."""
         capture = cv2.VideoCapture(self.source)
         is_file = isinstance(self.source, str)
+        if not is_file:
+            # Sin esto OpenCV abre las camaras a 640x480 y el semaforo queda en pocos pixeles
+            capture.set(cv2.CAP_PROP_FRAME_WIDTH, SETTINGS["camera"]["resolution_width"])
+            capture.set(cv2.CAP_PROP_FRAME_HEIGHT, SETTINGS["camera"]["resolution_height"])
         frames_read = 0
         try:
             fps = capture.get(cv2.CAP_PROP_FPS) if is_file else 0

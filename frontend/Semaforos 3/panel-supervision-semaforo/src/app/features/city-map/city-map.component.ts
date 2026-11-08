@@ -70,6 +70,7 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
   protected cargandoMalla = signal(true);
   private mapaListo = signal(false);
   private mapa?: MaplibreMap;
+  private redimension?: ResizeObserver;
 
   constructor() {
     // Actualiza los puntos de los semaforos en cada consulta
@@ -130,11 +131,16 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
         }
       });
 
+      // MapLibre solo escucha cambios de la ventana; al expandir la camara cambia el contenedor
+      this.redimension = new ResizeObserver(() => mapa.resize());
+      this.redimension.observe(this.contenedor.nativeElement);
+
       this.mapa = mapa;
     });
   }
 
   ngOnDestroy(): void {
+    this.redimension?.disconnect();
     this.mapa?.remove();
   }
 

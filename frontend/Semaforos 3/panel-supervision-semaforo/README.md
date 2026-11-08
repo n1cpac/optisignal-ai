@@ -72,13 +72,15 @@ Endpoints que el frontend espera:
 | Metodo | Ruta | Respuesta |
 |---|---|---|
 | GET | `/semaforos` | lista de `Semaforo` (consulta cada 1,5 s) |
-| GET | `/reportes` | lista de `Reporte` (consulta cada 5 s) |
-| POST | `/reportes/envio` | recibe `EnvioReporte`, responde `{ "ok": true }` |
+| GET | `/reportes?vista=actuales\|historial&pagina=1&tamano=20` | `PaginaReportes` con `items` y `total` (consulta cada 5 s) |
+| POST | `/reportes/envio` | recibe `EnvioReporte`, atiende las alertas pendientes del semaforo y responde `{ "ok": true }` |
+| POST | `/reportes/{id}/abrir` | marca una alerta como abierta: deja de repetirse como recordatorio |
 | GET | `/camaras/{id}/mjpeg` | video anotado con la deteccion de YOLO |
 
 Detalles de `Semaforo` (ver `core/models/semaforo.model.ts`):
 
-- `estadoElectrico`: `rojo`, `amarillo`, `verde` o `apagado`, segun el sistema electrico del semaforo.
+- `estadoElectrico`: `rojo`, `amarillo`, `verde`, `apagado` o `multiple`, segun el sistema electrico del
+  semaforo. `lucesElectricas` dice cuales estan encendidas.
 - `estadoVisual`: lo que ve la camara con YOLO + HSV. Ademas de las luces puede ser `multiple`,
   `sin_deteccion`, `desconocido` o `sin_senal`. `lucesDetectadas` y `confianza` lo detallan.
 - `estadoOperativo`: `normal` o `anomalia` (define el color del punto en el mapa y los totales).

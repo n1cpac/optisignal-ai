@@ -56,7 +56,7 @@ function haceMinutos(min: number): string {
   return new Date(Date.now() - min * 60_000).toISOString();
 }
 
-const REPORTES_MOCK: Reporte[] = [
+const REPORTES_MOCK: Reporte[] = ([
   { id: 'r1', semaforoId: 's6', ubicacion: 'AK 97 con CL 16I', fecha: haceMinutos(4),
     descripcion: 'Semaforo apagado: no se detecta ninguna luz encendida.' },
   { id: 'r6', semaforoId: 's7', ubicacion: 'AC 6 con TV 78C', fecha: haceMinutos(9),
@@ -69,7 +69,13 @@ const REPORTES_MOCK: Reporte[] = [
     descripcion: 'Secuencia invalida: paso de rojo a verde sin amarillo.' },
   { id: 'r5', semaforoId: 's2', ubicacion: 'AC 72 con KR 13', fecha: haceMinutos(1500),
     descripcion: 'Baja confianza de deteccion por contraluz.' }
-];
+] as Pick<Reporte, 'id' | 'semaforoId' | 'ubicacion' | 'fecha' | 'descripcion'>[]).map((r) => ({
+  ...r,
+  automatica: true,
+  opciones: null,
+  alertasVerificadas: 0,
+  ultimaAlertaVerificada: null
+}));
 
 /** Ciclo simple de 20 s: verde, amarillo, rojo. */
 function cicloLuz(fase: number): EstadoLuz {
@@ -103,10 +109,23 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     return responder(generarSemaforos());
   }
   if (req.method === 'GET' && req.url.endsWith('/reportes')) {
-    return responder(REPORTES_MOCK);
+    // Las alertas falsas son todas actuales; el historial simulado esta vacio
+    const items = req.params.get('vista') === 'historial' ? [] : REPORTES_MOCK;
+    const pagina = Number(req.params.get('pagina') ?? 1);
+    const tamano = Number(req.params.get('tamano') ?? 20);
+    return responder({
+      items: items.slice((pagina - 1) * tamano, pagina * tamano),
+      total: items.length,
+      pagina,
+      tamano,
+      ultimoId: null
+    });
   }
   if (req.method === 'POST' && req.url.endsWith('/reportes/envio')) {
-    return responder({ ok: true }, 500);
+    return responder({ ok: true, id: 'mock' }, 500);
+  }
+  if (req.method === 'POST' && req.url.endsWith('/abrir')) {
+    return responder({ ok: true });
   }
   // Cualquier otra peticion (por ejemplo el GeoJSON o las imagenes) sigue normal
   return next(req);

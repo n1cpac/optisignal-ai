@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 
+import { PanelStateService } from './core/services/panel-state.service';
 import { ReportHistoryComponent } from './features/report-history/report-history.component';
 import { CityMapComponent } from './features/city-map/city-map.component';
 import { SemaforoDetailComponent } from './features/semaforo-detail/semaforo-detail.component';
@@ -12,7 +13,7 @@ import { SemaforoDetailComponent } from './features/semaforo-detail/semaforo-det
     <div class="app">
       <header class="encabezado">OPTISIGNAL</header>
 
-      <div class="cuerpo">
+      <div class="cuerpo" [class.expandida]="state.camaraExpandida()">
         <aside class="izquierda"><app-report-history /></aside>
         <main class="centro"><app-city-map /></main>
         <aside class="derecha"><app-semaforo-detail /></aside>
@@ -30,12 +31,15 @@ import { SemaforoDetailComponent } from './features/semaforo-detail/semaforo-det
     }
     .cuerpo {
       display: grid;
-      grid-template-columns: minmax(240px, 15%) 1fr minmax(300px, 20%);
+      grid-template-columns: minmax(240px, 15%) 1fr minmax(360px, 28%);
       min-height: 0;
     }
+    .cuerpo.expandida { grid-template-columns: minmax(240px, 15%) 1fr 50%; }
     .izquierda, .derecha { background: #222; color: #fff; overflow-y: auto; }
     .derecha { padding: 16px; }
     .centro { position: relative; min-width: 0; background: #fff; }
   `]
 })
-export class AppComponent {}
+export class AppComponent {
+  protected state = inject(PanelStateService);
+}
