@@ -1,7 +1,7 @@
 """
 Aligera el GeoJSON de la Malla Vial Integral de Bogota para usarlo en el navegador.
 
-- Descarta todos los atributos: el mapa dibuja todas las vias del mismo color y no usa ninguno.
+- Conserva solo algunos atributos (los demas pesan mucho y el mapa no los usa).
 - Redondea las coordenadas (5 decimales, aprox. 1 metro).
 - Descarta tramos sin geometria y escribe el JSON compacto.
 
@@ -11,6 +11,12 @@ Uso:
 import json
 import sys
 
+# Atributos que se conservan (nombre original -> nombre corto en la salida)
+ATRIBUTOS = {
+    "MVITIPO": "tipo",         # tipo de via (KR, CL, AC, AK, TV, DG)
+    "MVIETIQUET": "etiqueta",  # etiqueta de la via, ej. "KR 8A E"
+    "MVI_VELREG": "vel",       # velocidad reglamentada
+}
 DECIMALES = 5
 
 
@@ -29,9 +35,17 @@ def main(entrada, salida):
         geom = feat.get("geometry")
         if not geom:
             continue
+        props = feat.get("properties") or {}
+        nuevas = {}
+        for original, corto in ATRIBUTOS.items():
+            valor = props.get(original)
+            if isinstance(valor, str):
+                valor = valor.strip()
+            if valor not in (None, ""):
+                nuevas[corto] = valor
         features.append({
             "type": "Feature",
-            "properties": {},
+            "properties": nuevas,
             "geometry": {"type": geom["type"], "coordinates": redondear(geom["coordinates"])},
         })
 

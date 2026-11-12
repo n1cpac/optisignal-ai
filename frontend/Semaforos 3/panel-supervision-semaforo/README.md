@@ -90,9 +90,12 @@ La camara virtual de OBS la lee el backend (con `source: 0` en `CONFIG_PARAMETER
 ## Malla vial
 
 El GeoJSON original (Malla Vial Integral de Bogota, unos 138 MB) es demasiado pesado para el
-navegador. `tools/aligerar_geojson.py` conserva solo la geometria (el mapa dibuja todas las vias del
-mismo color y no usa atributos) y redondea las coordenadas a 5 decimales. El resultado pesa unos
-20 MB (unos 3 MB comprimido). Para regenerarlo:
+navegador. `tools/aligerar_geojson.py` conserva solo el tipo de via, la etiqueta (nombre de la via,
+ej. `KR 13`) y la velocidad reglamentada, y redondea las coordenadas a 5 decimales. El resultado pesa
+unos 24 MB (unos 3 MB comprimido).
+
+El mapa no usa los atributos, pero el backend si: con las etiquetas ubica cada semaforo en el cruce
+que dice su nombre (`AC 72 con KR 13`), asi que no hay que quitarlas. Para regenerarlo:
 
 ```bash
 python tools/aligerar_geojson.py ruta/al/original.geojson src/assets/malla-vial-bogota.geojson

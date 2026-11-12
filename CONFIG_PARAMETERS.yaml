@@ -83,51 +83,40 @@ camera:
   frame_buffer_size: 5
   timeout_seconds: 5
 semaforos:
+# lat/lng are optional: without them the backend places the light at the crossing named in
+# 'nombre' (e.g. 'AC 72 con KR 13'), using the road names in road_network. Give them by hand
+# only for odd cases, such as a roundabout.
 # s1 is the only camera. A folder source takes a random render on every backend start;
 # its electrical state and fault come from the file name (scenario_NN_time_lights.png).
 - id: s1
   nombre: AC 13 con CL 13
-  lat: 4.60357
-  lng: -74.07992
   electrico: rojo
   falla: false
   source: data/test_videos/test1.mp4
 - id: s2
   nombre: AC 72 con KR 13
-  lat: 4.65843
-  lng: -74.06038
   source: frontend/smaforos blender/renders_escenarios
 - id: s3
   nombre: AK 7 con CL 117
-  lat: 4.69469
-  lng: -74.03265
   source: frontend/smaforos blender/renders_escenarios
 - id: s4
   nombre: AC 145 con KR 96
-  lat: 4.74077
-  lng: -74.08894
   source: frontend/smaforos blender/renders_escenarios
 - id: s5
   nombre: AC 63 con KR 103A
-  lat: 4.69513
-  lng: -74.12479
   source: frontend/smaforos blender/renders_escenarios
 - id: s6
   nombre: AK 97 con CL 16I
-  lat: 4.66986
-  lng: -74.14509
   source: frontend/smaforos blender/renders_escenarios
 - id: s7
   nombre: AC 6 con TV 78C
-  lat: 4.6323
-  lng: -74.14954
   source: frontend/smaforos blender/renders_escenarios
 - id: s8
   nombre: AK 80 con CL 59 S
-  lat: 4.60866
-  lng: -74.18121
   source: frontend/smaforos blender/renders_escenarios
 # A history report shows one of these renders instead of the live camera (fixed per report)
+# Road network with names (MVIETIQUET), shared with the panel map
+road_network: frontend/Semaforos 3/panel-supervision-semaforo/src/assets/malla-vial-bogota.geojson
 history_scenes: frontend/smaforos blender/renders_escenarios
 database:
   path: ./data/optisignal.db
