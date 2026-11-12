@@ -75,6 +75,7 @@ STREAM_INTERVAL_SECONDS = SETTINGS["detector"]["inference_interval_seconds"]
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     database.init()
+    database.archivar_alertas_movidas({s["id"]: s["nombre"] for s in SEMAFOROS.values()})
     monitor = Monitor(list(SEMAFOROS.values()), Detector())
     monitor.start()
     app.state.monitor = monitor

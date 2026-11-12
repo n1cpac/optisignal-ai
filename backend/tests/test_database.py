@@ -126,3 +126,22 @@ def test_old_databases_gain_the_new_columns_without_losing_rows(tmp_path, monkey
     assert (alerta_vieja.automatica, alerta_vieja.opciones) == (True, None)
     assert (reporte.automatica, reporte.opciones.coincide, reporte.opciones.falla,
             reporte.opciones.comentario) == (False, True, None, None)
+
+
+def test_alerts_from_a_previous_address_leave_current_alerts(db):
+    vieja = alerta("s6")  # s6 estaba en otro cruce
+    with sqlite3.connect(database.DB_PATH) as conn:
+        conn.execute("UPDATE reportes SET ubicacion = 'AK 97 con CL 16I' WHERE id = ?", (vieja,))
+    de_un_semaforo_quitado = alerta("s9")
+    actual = alerta("s1")  # su ubicacion es "AC 13", la direccion vigente de s1
+
+    assert database.archivar_alertas_movidas({"s1": "AC 13", "s6": "AK 7 con CL 84"}) == 2
+    assert database.archivar_alertas_movidas({"s1": "AC 13", "s6": "AK 7 con CL 84"}) == 0  # ya archivadas
+
+    assert [r.id for r in vista("actuales")] == [str(actual)]
+    historial = {r.id: r for r in vista("historial")}
+    assert {str(vieja), str(de_un_semaforo_quitado)} <= set(historial)  # no verificadas, con su direccion
+    assert historial[str(vieja)].ubicacion == "AK 97 con CL 16I"
+
+    database.insert_reporte(envio("s6"), "AK 7 con CL 84")  # un reporte del lugar nuevo
+    assert database.alerta_vista(vieja) is False  # no verifica la alerta del lugar anterior

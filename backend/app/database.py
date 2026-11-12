@@ -19,11 +19,13 @@ ADDED_COLUMNS = {
     "comentario": "TEXT",
     "atendida_por": "INTEGER REFERENCES reportes(id)",
     "abierta_en": "TEXT",  # primera vez que un operador abrio la alerta en el panel
+    # 1: alerta de una direccion que su semaforo ya no tiene (se movio o se quito): ya no esta pendiente
+    "archivada": "INTEGER NOT NULL DEFAULT 0",
 }
 
 # Actuales: alertas del sistema sin atender y de hoy. Historial: cada reporte del operador una sola vez
 # (verificado; las alertas que verifico van dentro de el) y las alertas que nadie verifico.
-PENDIENTE_HOY = "{t}.automatica = 1 AND {t}.atendida_por IS NULL AND {t}.fecha >= :hoy"
+PENDIENTE_HOY = "{t}.automatica = 1 AND {t}.atendida_por IS NULL AND {t}.archivada = 0 AND {t}.fecha >= :hoy"
 WHERE_VISTA = {
     # Una fila por semaforo: su alerta pendiente mas reciente (una nueva la reemplaza y la sube)
     "actuales": PENDIENTE_HOY.format(t="r") + " AND r.id = (SELECT max(a.id) FROM reportes a "
@@ -80,10 +82,34 @@ def insert_reporte(envio: EnvioReporte, ubicacion: str) -> int:
         )
         db.execute(
             "UPDATE reportes SET atendida_por = ? "
-            "WHERE semaforo_id = ? AND automatica = 1 AND atendida_por IS NULL",
+            "WHERE semaforo_id = ? AND automatica = 1 AND atendida_por IS NULL AND archivada = 0",
             (cursor.lastrowid, envio.semaforoId),
         )
         return cursor.lastrowid
+
+
+def archivar_alertas_movidas(direcciones: dict[str, str]) -> int:
+    """Archiva las alertas pendientes cuya direccion ya no es la de su semaforo ({id: nombre actual}).
+
+    Los semaforos se identifican por id: si s6 pasa a otro cruce, sus alertas viejas no deben
+    seguir en "Actuales" con la direccion anterior ni verificarse con un reporte del lugar nuevo.
+    Pasan al historial como no verificadas, con la direccion donde ocurrieron.
+    """
+    marcadores = ", ".join("?" for _ in direcciones)
+    with closing(_connect()) as db, db:
+        archivadas = 0
+        for semaforo_id, nombre in direcciones.items():
+            archivadas += db.execute(
+                "UPDATE reportes SET archivada = 1 WHERE automatica = 1 AND atendida_por IS NULL "
+                "AND archivada = 0 AND semaforo_id = ? AND ubicacion != ?",
+                (semaforo_id, nombre),
+            ).rowcount
+        archivadas += db.execute(  # semaforos que ya no estan en la configuracion
+            "UPDATE reportes SET archivada = 1 WHERE automatica = 1 AND atendida_por IS NULL "
+            f"AND archivada = 0 AND semaforo_id NOT IN ({marcadores})",
+            tuple(direcciones),
+        ).rowcount
+    return archivadas
 
 
 def insert_alerta_sistema(semaforo_id: str, ubicacion: str, tipo_anomalia: str, detalle: str = "") -> int:
