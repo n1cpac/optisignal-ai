@@ -42,7 +42,34 @@ El entrenamiento y la evaluación se fundamentan exclusivamente en dos repositor
 - **[LISA Traffic Light Dataset](https://cvrr.ucsd.edu/):** secuencias diurnas/nocturnas con CSV de anotaciones.
 - **Bosch Small Traffic Lights Dataset (BSTLD):** imágenes con cajas en anotaciones YAML.
 
-El pipeline prioriza `data/datasets/lisa` y `data/datasets/bosch` locales. Si falta alguno, `data/scripts/prepare_datasets.py` usa como fallback la carpeta compartida de [Google Drive](https://drive.google.com/drive/folders/1_Q2jS-ZgivHq8bc2KpVxw58tIeP60f5x?usp=sharing), después convierte, particiona y valida ambos datasets. La estructura original de cada fuente se conserva en `data/datasets/`; los derivados quedan en `data/processed/{lisa,bosch}/` sin fusionar fuentes ni modificar la raw data. Consulta [PHASE_3_DATASETS_GUIDE.md](PHASE_3_DATASETS_GUIDE.md) para instalación y comandos.
+El pipeline prioriza `data/datasets/lisa` y `data/datasets/bosch` locales. Si falta alguno, `data/scripts/prepare_datasets.py` usa como fallback la carpeta compartida de [Google Drive](https://drive.google.com/drive/folders/1_Q2jS-ZgivHq8bc2KpVxw58tIeP60f5x?usp=sharing), después convierte, particiona y valida ambos datasets. La estructura original de cada fuente se conserva en `data/datasets/`; los derivados quedan en `data/processed/{lisa,bosch,blender}/` sin fusionar fuentes ni modificar la raw data. Consulta [PHASE_3_DATASETS_GUIDE.md](docs/phases/PHASE_3_DATASETS_GUIDE.md) para instalación y comandos.
+
+---
+
+## Estructura del repositorio
+
+```text
+optisignal-ai/
+├── backend/            # API FastAPI, detector YOLO, clasificador HSV y FSM
+├── frontend/           # Panel de supervisión web (Angular) y assets/renders 3D (Blender)
+├── data/               # Datasets raw y procesados, scripts de preparación y videos
+├── docs/               # Documentación organizada
+│   ├── phases/         # Guías y checklists de las fases del proyecto
+│   ├── specifications/ # Definición de anomalías, diseño técnico y secuencia
+│   └── paper/          # Artículo académico en LaTeX (main.tex)
+├── media/              # Material comercial, jingles y storyboards
+├── models/             # Pesos entrenados de YOLO (.pt)
+├── notebooks/          # Notebooks de Jupyter para entrenamiento de YOLO
+├── pres/               # Presentación interactiva HTML5
+├── prototype/          # Prototipo físico basado en ESP32
+└── results/            # Métricas, matrices de confusión y gráficos de entrenamiento
+```
+
+---
+
+## Ejecución rápida
+
+Consulta [`COMO_EJECUTAR.txt`](COMO_EJECUTAR.txt) para las instrucciones paso a paso de ejecución del backend y el panel de supervisión.
 
 ---
 

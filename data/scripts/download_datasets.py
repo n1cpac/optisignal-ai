@@ -4,6 +4,8 @@
 import argparse
 import shutil
 import tempfile
+import urllib3
+urllib3.disable_warnings()
 from pathlib import Path
 from typing import Dict
 
@@ -21,12 +23,29 @@ def is_bosch(root: Path) -> bool:
 def resolve_datasets(data_root: Path, source_url: str = DRIVE_URL) -> Dict[str, Path]:
     """Return native roots. Existing valid datasets are never downloaded or overwritten."""
     validators = {"lisa": is_lisa, "bosch": is_bosch}
-    roots = {name: data_root / name for name in validators}
-    missing = [name for name, root in roots.items() if not validators[name](root)]
+
+    # 1. Buscar en data_root y en rutas locales conocidas de Google Drive
+    search_dirs = [
+        data_root,
+        Path("G:/Mi unidad/Datasets optisignal"),
+        Path(data_root.anchor + "/Mi unidad/Datasets optisignal") if data_root.anchor else None,
+    ]
+    search_dirs = [d for d in search_dirs if d and d.exists()]
+
+    roots: Dict[str, Path] = {}
+    for name, validator in validators.items():
+        for d in search_dirs:
+            candidate = d / name
+            if validator(candidate):
+                roots[name] = candidate
+                break
+
+    missing = [name for name in validators if name not in roots]
     if not missing:
-        print("LISA y Bosch disponibles localmente; no se descargan.")
+        print(f"LISA y Bosch disponibles localmente ({', '.join(str(roots[k]) for k in roots)}); no se descargan.")
         return roots
-    occupied = [name for name in missing if roots[name].exists()]
+
+    occupied = [name for name in missing if (data_root / name).exists()]
     if occupied:
         raise RuntimeError(
             f"Hay carpetas locales incompletas para {', '.join(occupied)}. No se sobrescribirán; corrige o mueve esas carpetas antes de continuar."
@@ -42,14 +61,16 @@ def resolve_datasets(data_root: Path, source_url: str = DRIVE_URL) -> Dict[str, 
     data_root.mkdir(parents=True, exist_ok=True)
     print(f"Faltan {', '.join(missing)}; descargando Google Drive a una carpeta temporal.")
     with tempfile.TemporaryDirectory(prefix="optisignal-datasets-") as temporary:
-        result = gdown.download_folder(url=source_url, output=temporary, quiet=False, remaining_ok=True)
+        result = gdown.download_folder(url=source_url, output=temporary, quiet=False, verify=False)
         if not result:
             raise RuntimeError("Google Drive no devolvió archivos. Comprueba que la carpeta sea accesible y conserva su estructura esperada.")
         invalid = [name for name in missing if not validators[name](Path(temporary) / name)]
         if invalid:
             raise RuntimeError(f"La descarga no produjo la estructura esperada para: {', '.join(invalid)}")
         for name in missing:
-            shutil.copytree(Path(temporary) / name, roots[name])
+            dest = data_root / name
+            shutil.copytree(Path(temporary) / name, dest)
+            roots[name] = dest
     return roots
 
 

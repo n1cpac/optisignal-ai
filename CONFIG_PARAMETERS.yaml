@@ -1,5 +1,10 @@
 detector:
-  model_path: models/bosch_best.pt  # New Blender scene, 96 renders: bosch 54/96 vs lisa 35/96
+  ensemble: true
+  model_paths:
+    - models/blender_best.pt  # 3D renders del frontend + Bogotá local (87.5% de acierto en front)
+    - models/lisa_best.pt     # Semáforos reales diversos (alta sensibilidad a video real)
+    - models/bosch_best.pt    # Semáforos urbanos alta resolución
+  model_path: models/blender_best.pt  # Fallback si ensemble está desactivado
   inference_interval_seconds: 0.25
   confidence_threshold: 0.25
   iou_threshold: 0.45
@@ -86,7 +91,7 @@ semaforos:
   lng: -74.07992
   electrico: rojo
   falla: false
-  source: 0  # OBS Virtual Camera (Blender en vivo); para el video de prueba: data/test_videos/test1.mp4
+  source: data/test_videos/test1.mp4
 - id: s2
   nombre: AC 72 con KR 13
   lat: 4.65843

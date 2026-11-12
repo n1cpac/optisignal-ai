@@ -1,4 +1,34 @@
+# Entornos y caches de Python
 __pycache__/
+*.py[cod]
+*$py.class
 .pytest_cache/
 .venv/
+env/
+venv/
+
+# Bases de datos locales
 *.db
+*.sqlite3
+
+# Node & Angular
+node_modules/
+.angular/
+dist/
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Carpetas obsoletas / temporales
+frontend/panel-supervision-semaforo/
+
+# Runs temporales de YOLO
+runs/
+notebooks/runs/
+weights/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
