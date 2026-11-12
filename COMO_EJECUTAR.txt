@@ -67,6 +67,14 @@ Reinicia el backend despues de cualquier cambio en este archivo.
 - Si OBS no aparece (s1 dice "Sin senal de camara"): verifica que la camara virtual este
   iniciada en OBS, o prueba  source: 1  (otro indice de camara).
 - Modelo YOLO: detector > model_path  (models/bosch_best.pt o models/lisa_best.pt).
+- Agregar o mover un semaforo: basta con su nombre, en la forma "via con via":
+      - id: s9
+        nombre: AK 68 con CL 26
+        source: frontend/smaforos blender/renders_escenarios
+  El backend lo ubica en ese cruce del mapa. Se escribe como en la Malla Vial (AC, AK, CL, KR, TV,
+  DG; "Calle 26" tambien sirve). "CL 13" y "CL 13 S" son vias distintas. Si el cruce no existe, es
+  ambiguo (las vias se cruzan dos veces) o es una glorieta, el backend no arranca y dice por que:
+  en ese caso agrega a mano  lat:  y  lng:  al semaforo.
 
 
 PRUEBAS AUTOMATICAS  (opcional, terminal 1 con el backend detenido)

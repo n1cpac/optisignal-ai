@@ -4,13 +4,12 @@ import { DatePipe, PercentPipe } from '@angular/common';
 import { EstadoVisual } from '../../core/models/semaforo.model';
 import { PanelStateService } from '../../core/services/panel-state.service';
 import { TrafficLightComponent } from '../../shared/components/traffic-light/traffic-light.component';
-import { LiveCameraComponent } from '../../shared/components/live-camera/live-camera.component';
 import { ReportFormComponent } from './report-form.component';
 
 @Component({
   selector: 'app-semaforo-detail',
   standalone: true,
-  imports: [DatePipe, PercentPipe, TrafficLightComponent, LiveCameraComponent, ReportFormComponent],
+  imports: [DatePipe, PercentPipe, TrafficLightComponent, ReportFormComponent],
   template: `
     @if (state.reporteHistorial(); as r) {
       <h2>{{ r.ubicacion }}</h2>
@@ -54,10 +53,7 @@ import { ReportFormComponent } from './report-form.component';
       <h2>{{ s.nombre }}</h2>
 
       <section class="electrico">
-        <app-traffic-light
-          [estado]="s.estadoElectrico === 'multiple' ? null : s.estadoElectrico"
-          [luces]="s.lucesElectricas ?? null"
-        />
+        <app-traffic-light [luces]="s.lucesElectricas" />
         <div class="rotulos">
           <strong>Estado semáforo</strong>
           <span>Sistema eléctrico</span>
@@ -81,21 +77,15 @@ import { ReportFormComponent } from './report-form.component';
         </div>
 
         <div class="imagen">
-          @if (s.fuenteImagen === 'obs') {
-            <app-live-camera etiquetaDispositivo="OBS" />
-          } @else {
-            <img [src]="imagenSrc()" alt="Imagen en vivo del semáforo" />
-          }
+          <img [src]="imagenSrc()" alt="Imagen en vivo del semáforo" />
         </div>
 
-        @if (s.estadoVisual; as visual) {
-          <p class="deteccion">
-            Detección YOLO: <strong>{{ etiquetasVisual[visual] }}</strong>
-            @if (s.confianza != null) {
-              <small>· Confianza {{ s.confianza | percent }}</small>
-            }
-          </p>
-        }
+        <p class="deteccion">
+          Detección YOLO: <strong>{{ etiquetasVisual[s.estadoVisual] }}</strong>
+          @if (s.confianza != null) {
+            <small>· Confianza {{ s.confianza | percent }}</small>
+          }
+        </p>
       </section>
 
       <app-report-form [semaforoId]="s.id" />

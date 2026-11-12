@@ -15,6 +15,7 @@ from app.config import ROOT, SETTINGS
 from app.detector import Detector
 from app.models import EnvioReporte, PaginaReportes, Semaforo
 from app.monitor import Monitor, VisionResult
+from app.ubicacion import MallaVial
 
 LIGHTS = {"rojo", "amarillo", "verde"}
 
@@ -49,7 +50,25 @@ def with_random_renders(semaforos: list[dict], rng: random.Random = random.Rando
     return result
 
 
-SEMAFOROS = {s["id"]: s for s in with_random_renders(SETTINGS["semaforos"])}
+def with_positions(semaforos: list[dict], ruta_malla: Path = ROOT / SETTINGS["road_network"]) -> list[dict]:
+    """Un semaforo sin lat/lng se ubica en el cruce que dice su nombre ('AC 72 con KR 13')."""
+    faltan = [s for s in semaforos if "lat" not in s or "lng" not in s]
+    if not faltan:
+        return semaforos
+    malla = MallaVial(ruta_malla)  # se carga solo si hace falta: son unos 25 MB
+    ubicados = []
+    for semaforo in semaforos:
+        if semaforo in faltan:
+            try:
+                lat, lng = malla.cruce(semaforo["nombre"])
+            except ValueError as error:
+                raise ValueError(f"Semaforo {semaforo['id']}: {error}") from None
+            semaforo = {**semaforo, "lat": lat, "lng": lng}
+        ubicados.append(semaforo)
+    return ubicados
+
+
+SEMAFOROS = {s["id"]: s for s in with_positions(with_random_renders(SETTINGS["semaforos"]))}
 STREAM_INTERVAL_SECONDS = SETTINGS["detector"]["inference_interval_seconds"]
 
 

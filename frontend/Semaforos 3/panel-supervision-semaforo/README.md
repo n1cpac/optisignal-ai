@@ -27,9 +27,7 @@ Panel unico en Angular (standalone components + signals). Todo se ve en una sola
 src/app/
 ├── core/
 │   ├── models/          semaforo.model.ts, reporte.model.ts
-│   ├── services/        api.service.ts (HTTP + polling), panel-state.service.ts (estado compartido)
-│   ├── interceptors/    mock-api.interceptor.ts (backend simulado)
-│   └── mock-api.config.ts   interruptor USE_MOCK_API
+│   └── services/        api.service.ts (HTTP + polling), panel-state.service.ts (estado compartido)
 ├── features/
 │   ├── report-history/  historial de reportes (izquierda)
 │   ├── city-map/        mapa MapLibre con la malla vial (centro)
@@ -64,8 +62,8 @@ tiene casi 137.000 tramos (aparece el aviso "Cargando malla vial...").
 
 ## Backend
 
-Las camaras y los semaforos se configuran en `semaforos` de `CONFIG_PARAMETERS.yaml`. Para ver el panel
-sin backend, `USE_MOCK_API = true` en `src/app/core/mock-api.config.ts` activa un interceptor con datos falsos.
+Las camaras y los semaforos se configuran en `semaforos` de `CONFIG_PARAMETERS.yaml`. El panel necesita
+el backend corriendo: sin el, el mapa carga pero no muestra semaforos ni reportes.
 
 Endpoints que el frontend espera:
 
@@ -84,46 +82,24 @@ Detalles de `Semaforo` (ver `core/models/semaforo.model.ts`):
 - `estadoVisual`: lo que ve la camara con YOLO + HSV. Ademas de las luces puede ser `multiple`,
   `sin_deteccion`, `desconocido` o `sin_senal`. `lucesDetectadas` y `confianza` lo detallan.
 - `estadoOperativo`: `normal` o `anomalia` (define el color del punto en el mapa y los totales).
-- `fuenteImagen`: `obs` muestra la camara virtual de OBS en el navegador; `url` (por defecto) muestra `imagenUrl`.
-- `imagenUrl`: imagen en vivo cuando la fuente es `url`. Puede ser una transmision MJPEG (el navegador la
-  muestra sola dentro de un `<img>`) o una captura cuya URL cambia cuando hay una imagen nueva. El
-  frontend usa la URL tal cual, sin agregarle parametros.
+- `imagenUrl`: video en vivo de la camara, como transmision MJPEG anotada por el backend (el navegador
+  la muestra sola dentro de un `<img>`). El frontend usa la URL tal cual, sin agregarle parametros.
 
-## Camara en vivo con OBS
-
-El componente `shared/components/live-camera` abre la camara con `getUserMedia` y elige el dispositivo
-cuyo nombre contiene "OBS" (la camara virtual de OBS). Si no la encuentra, usa la camara predeterminada.
-En el mock, el semaforo `s2` (AC 72 con KR 13) usa esta fuente y los demas muestran capturas de
-`src/assets/semaforos/` (rojo, amarillo, apagado y rojo con verde); se cambia con `obs: true` en
-`mock-api.interceptor.ts`, o con `fuenteImagen: 'obs'` en la respuesta del backend real.
-
-Para probar:
-
-1. En OBS, arma la escena con la fuente de video del semaforo (camara, captura de ventana, etc.).
-2. En el panel "Controles" de OBS, pulsa "Iniciar camara virtual".
-3. En el panel, selecciona el semaforo `AC 72 con KR 13` y permite el acceso a la camara cuando el
-   navegador lo pida.
-
-Notas:
-
-- `getUserMedia` solo funciona en `localhost` o con HTTPS.
-- Si inicias la camara virtual de OBS despues de abrir el panel, el componente cambia a ella solo, o
-  usa el boton "Reintentar".
-- La camara se libera al seleccionar otro semaforo, para no dejarla abierta sin necesidad.
+La camara virtual de OBS la lee el backend (con `source: 0` en `CONFIG_PARAMETERS.yaml`), no el navegador.
 
 ## Malla vial
 
 El GeoJSON original (Malla Vial Integral de Bogota, unos 138 MB) es demasiado pesado para el
-navegador. `tools/aligerar_geojson.py` conserva solo el tipo de via, la etiqueta y la velocidad
-reglamentada, y redondea las coordenadas a 5 decimales. El resultado pesa unos 24 MB
-(unos 3 MB comprimido). Para regenerarlo:
+navegador. `tools/aligerar_geojson.py` conserva solo el tipo de via, la etiqueta (nombre de la via,
+ej. `KR 13`) y la velocidad reglamentada, y redondea las coordenadas a 5 decimales. El resultado pesa
+unos 24 MB (unos 3 MB comprimido).
+
+El mapa no usa los atributos, pero el backend si: con las etiquetas ubica cada semaforo en el cruce
+que dice su nombre (`AC 72 con KR 13`), asi que no hay que quitarlas. Para regenerarlo:
 
 ```bash
 python tools/aligerar_geojson.py ruta/al/original.geojson src/assets/malla-vial-bogota.geojson
 ```
-
-Las coordenadas de los semaforos del mock son intersecciones reales de esa malla, usadas solo como
-ubicaciones de ejemplo.
 
 ## Pendiente
 

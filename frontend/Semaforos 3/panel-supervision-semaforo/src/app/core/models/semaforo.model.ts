@@ -8,8 +8,6 @@ export type EstadoVisual =
   | 'desconocido'
   | 'sin_senal';
 export type EstadoOperativo = 'normal' | 'anomalia';
-/** 'obs': camara virtual de OBS (se abre en el navegador). 'url': imagen que entrega el backend. */
-export type FuenteImagen = 'url' | 'obs';
 
 export interface Semaforo {
   id: string;
@@ -18,11 +16,10 @@ export interface Semaforo {
   lng: number;
   estadoOperativo: EstadoOperativo;
   estadoElectrico: EstadoLuz | 'multiple'; // deteccion del sistema electrico del semaforo
-  lucesElectricas?: EstadoLuz[]; // luces encendidas segun el sistema electrico; solo el backend real
-  estadoVisual?: EstadoVisual; // YOLO + HSV; solo lo entrega el backend real
-  lucesDetectadas?: EstadoLuz[]; // lentes encendidos segun la camara
-  confianza?: number | null; // confianza de YOLO, de 0 a 1
-  fuenteImagen?: FuenteImagen; // por defecto 'url'
-  imagenUrl: string; // imagen en vivo de la camara (se usa cuando la fuente es 'url')
+  lucesElectricas: EstadoLuz[]; // luces encendidas segun el sistema electrico
+  estadoVisual: EstadoVisual; // YOLO + HSV
+  lucesDetectadas: EstadoLuz[]; // lentes encendidos segun la camara
+  confianza: number | null; // confianza de YOLO, de 0 a 1
+  imagenUrl: string; // video en vivo de la camara (MJPEG)
   ultimaActualizacion: string; // ISO 8601
 }

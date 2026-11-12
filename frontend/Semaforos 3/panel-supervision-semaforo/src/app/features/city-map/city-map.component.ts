@@ -145,7 +145,8 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
   }
 
   private configurarCapas(mapa: MaplibreMap): void {
-    // 1. Malla vial: todas las vias en gris claro y las avenidas (AC, AK) mas oscuras y gruesas
+    // 1. Malla vial en un solo gris: resaltar avenidas por su tipo dejaba cortes, porque los
+    //    datos no traen tipo en cruces, puentes y glorietas
     mapa.addSource('malla', {
       type: 'geojson',
       data: new URL('assets/malla-vial-bogota.geojson', document.baseURI).href
@@ -155,18 +156,8 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
       type: 'line',
       source: 'malla',
       paint: {
-        'line-color': '#b0b0b0',
+        'line-color': '#7a7a7a',
         'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.3, 14, 0.8, 18, 3]
-      }
-    });
-    mapa.addLayer({
-      id: 'malla-avenidas',
-      type: 'line',
-      source: 'malla',
-      filter: ['in', ['get', 'tipo'], ['literal', ['AC', 'AK']]],
-      paint: {
-        'line-color': '#444444',
-        'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.8, 14, 2, 18, 6]
       }
     });
 

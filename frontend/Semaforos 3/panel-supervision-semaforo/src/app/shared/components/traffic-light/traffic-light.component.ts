@@ -6,10 +6,10 @@ import { EstadoLuz } from '../../../core/models/semaforo.model';
   selector: 'app-traffic-light',
   standalone: true,
   template: `
-    <div class="semaforo" role="img" [attr.aria-label]="'Luz encendida: ' + (luces?.join(' y ') || estado || 'sin dato')">
-      <span class="luz rojo" [class.activo]="encendida('rojo')"></span>
-      <span class="luz amarillo" [class.activo]="encendida('amarillo')"></span>
-      <span class="luz verde" [class.activo]="encendida('verde')"></span>
+    <div class="semaforo" role="img" [attr.aria-label]="'Luz encendida: ' + (luces.join(' y ') || 'ninguna')">
+      <span class="luz rojo" [class.activo]="luces.includes('rojo')"></span>
+      <span class="luz amarillo" [class.activo]="luces.includes('amarillo')"></span>
+      <span class="luz verde" [class.activo]="luces.includes('verde')"></span>
     </div>
   `,
   styles: [`
@@ -36,11 +36,6 @@ import { EstadoLuz } from '../../../core/models/semaforo.model';
   `]
 })
 export class TrafficLightComponent {
-  @Input() estado: EstadoLuz | null = null;
-  /** Varias luces a la vez (lo que ve la camara). Si llega, reemplaza a `estado`. */
-  @Input() luces: EstadoLuz[] | null = null;
-
-  protected encendida(luz: EstadoLuz): boolean {
-    return this.luces ? this.luces.includes(luz) : this.estado === luz;
-  }
+  /** Luces encendidas; puede haber varias a la vez (una falla). */
+  @Input() luces: EstadoLuz[] = [];
 }
