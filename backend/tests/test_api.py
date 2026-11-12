@@ -28,7 +28,7 @@ def envio(**overrides):
 
 def test_semaforos_follow_the_panel_contract(client):
     semaforos = client.get("/semaforos").json()
-    assert [s["id"] for s in semaforos] == [f"s{i}" for i in range(1, 9)]
+    assert [s["id"] for s in semaforos] == [s["id"] for s in SETTINGS["semaforos"]]
     assert semaforos[0]["imagenUrl"] == "/camaras/s1/mjpeg"
     assert semaforos[0]["fuenteImagen"] == "url"
     assert semaforos[0]["estadoElectrico"] == "rojo"
@@ -37,10 +37,10 @@ def test_semaforos_follow_the_panel_contract(client):
 
 
 def test_only_s1_is_a_camera_and_the_rest_get_distinct_renders():
-    sources = [main.SEMAFOROS[f"s{i}"]["source"] for i in range(1, 9)]
+    sources = [s["source"] for s in main.SEMAFOROS.values()]
     assert sources[0] == SETTINGS["semaforos"][0]["source"]
     assert all(s.endswith(".png") and "renders_escenarios" in s for s in sources[1:])
-    assert len(set(sources[1:])) == 7
+    assert len(set(sources[1:])) == len(sources) - 1  # sin renders repetidos
 
 
 def make_renders(folder, *names):
@@ -89,7 +89,7 @@ def test_report_is_saved_and_listed_newest_first(client):
         "Coincide con la imagen. Sin fallo.",
         "No coincide con la imagen. Fallo en el semaforo: sin luz",
     ]
-    assert reportes[0]["ubicacion"] == "AC 13 con CL 13"
+    assert reportes[0]["ubicacion"] == main.SEMAFOROS["s1"]["nombre"]
 
 
 @pytest.mark.parametrize(

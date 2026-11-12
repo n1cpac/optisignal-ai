@@ -88,31 +88,37 @@ semaforos:
 # only for odd cases, such as a roundabout.
 # s1 is the only camera. A folder source takes a random render on every backend start;
 # its electrical state and fault come from the file name (scenario_NN_time_lights.png).
+# Names use the Malla Vial numbers; the common name of each avenue is in the comment.
 - id: s1
-  nombre: AC 13 con CL 13
+  nombre: AK 80 con AC 55 S  # Av. Agoberto Mejia con Av. Primero de Mayo
   electrico: rojo
   falla: false
   source: data/test_videos/test1.mp4
 - id: s2
-  nombre: AC 72 con KR 13
+  nombre: CL 17 con KR 106  # Av. Centenario con KR 106 (the AC 13 does not reach the KR 106 in the data)
   source: frontend/smaforos blender/renders_escenarios
 - id: s3
-  nombre: AK 7 con CL 117
+  nombre: KR 92 con CL 169B  # Suba
   source: frontend/smaforos blender/renders_escenarios
 - id: s4
-  nombre: AC 145 con KR 96
+  nombre: AC 26 con KR 19  # Av. El Dorado con KR 19
   source: frontend/smaforos blender/renders_escenarios
 - id: s5
-  nombre: AC 63 con KR 103A
+  nombre: KR 14 con CL 44 S  # Av. Caracas con CL 44 Sur (not confirmed that this KR 14 is the Caracas)
+  # By hand: in the data these roads come within 34 m without sharing a vertex
+  lat: 4.57475
+  lng: -74.12355
   source: frontend/smaforos blender/renders_escenarios
 - id: s6
-  nombre: AK 97 con CL 16I
+  nombre: AK 7 con CL 84
   source: frontend/smaforos blender/renders_escenarios
 - id: s7
-  nombre: AC 6 con TV 78C
+  nombre: AK 104 con AC 145  # Av. Ciudad de Cali con CL 145 (in Suba the Av. Cali is the AK 104)
   source: frontend/smaforos blender/renders_escenarios
 - id: s8
-  nombre: AK 80 con CL 59 S
+  # "Av. Cali con 101": no road numbered 101 crosses the Av. Cali in the data. The closest is the
+  # KR 101 (184 m away); this is the real Av. Cali crossing nearest to it (about 200 m).
+  nombre: AK 104 con AC 72
   source: frontend/smaforos blender/renders_escenarios
 # A history report shows one of these renders instead of the live camera (fixed per report)
 # Road network with names (MVIETIQUET), shared with the panel map

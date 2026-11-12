@@ -84,11 +84,12 @@ def test_the_panel_lights_sit_on_their_real_crossings():
     ruta = ROOT / SETTINGS["road_network"]
     if '"etiqueta"' not in ruta.read_text(encoding="utf-8")[:2000]:
         pytest.skip("La malla vial no trae nombres de vias")
-    # Coordenadas que se usaban antes, puestas a mano sobre cada cruce
-    antes = {"s1": (4.60357, -74.07992), "s2": (4.65843, -74.06038), "s3": (4.69469, -74.03265),
-             "s4": (4.74077, -74.08894), "s5": (4.69513, -74.12479), "s6": (4.66986, -74.14509),
-             "s7": (4.6323, -74.14954), "s8": (4.60866, -74.18121)}
-    for semaforo_id, (lat, lng) in antes.items():
+    # Cruces acordados para cada semaforo (revisados uno a uno contra la Malla Vial)
+    acordados = {"s1": (4.61444, -74.17479), "s2": (4.67684, -74.14916), "s3": (4.75873, -74.07746),
+                 "s4": (4.61847, -74.07494), "s5": (4.57475, -74.12355), "s6": (4.66406, -74.04778),
+                 "s7": (4.74648, -74.09617), "s8": (4.70597, -74.11899)}
+    assert set(main.SEMAFOROS) == set(acordados)
+    for semaforo_id, (lat, lng) in acordados.items():
         calculado = main.SEMAFOROS[semaforo_id]
         distancia_m = max(abs(calculado["lat"] - lat), abs(calculado["lng"] - lng)) * 111_000
         assert distancia_m < 20, (semaforo_id, calculado["nombre"], distancia_m)

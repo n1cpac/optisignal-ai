@@ -20,12 +20,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Carpetas obsoletas / temporales
-frontend/panel-supervision-semaforo/
-
 # Runs temporales de YOLO
 runs/
-notebooks/runs/
 weights/
 
 # Sistema operativo

@@ -9,7 +9,8 @@ REQUISITOS (solo la primera vez)
 --------------------------------
 - Python 3.11  (comprobar con:  py -3.11 --version)
 - Node.js      (comprobar con:  node --version)
-- Para la camara en vivo: OBS abierto con "Iniciar camara virtual" activo, capturando Blender.
+- Solo si usas la camara en vivo (ver CAMBIOS FRECUENTES): OBS abierto con "Iniciar camara
+  virtual" activo, capturando Blender.
 
 
 1. BACKEND  (terminal 1)
@@ -45,7 +46,8 @@ Listo cuando aparece:  Local: http://localhost:4200/
 En el navegador:  http://localhost:4200
 (usa "localhost", no "127.0.0.1")
 
-- s1 (AC 13 con CL 13) es la camara en vivo de OBS/Blender. Haz clic en su punto del mapa.
+- s1 (AC 13 con CL 13) muestra el video de prueba data\test_videos\test1.mp4 en bucle, o la camara
+  en vivo de OBS/Blender si la activas. Haz clic en su punto del mapa.
 - s2 a s8 muestran un render al azar de "frontend\smaforos blender\renders_escenarios";
   cambian cada vez que se reinicia el backend.
 - En la terminal 1 deben aparecer lineas "GET /semaforos 200" cada 1,5 s: el panel esta conectado.
@@ -60,13 +62,15 @@ CAMBIOS FRECUENTES  (archivo CONFIG_PARAMETERS.yaml, en la raiz del proyecto)
 ------------------------------------------------------------------------------
 Reinicia el backend despues de cualquier cambio en este archivo.
 
-- Usar el video de prueba en lugar de OBS: en s1 cambia
-      source: 0
-  por
+- Usar la camara en vivo de OBS/Blender en lugar del video de prueba: en s1 cambia
       source: data/test_videos/test1.mp4
-- Si OBS no aparece (s1 dice "Sin senal de camara"): verifica que la camara virtual este
+  por
+      source: 0
+  Si OBS no aparece (s1 dice "Sin senal de camara"): verifica que la camara virtual este
   iniciada en OBS, o prueba  source: 1  (otro indice de camara).
-- Modelo YOLO: detector > model_path  (models/bosch_best.pt o models/lisa_best.pt).
+- Modelos YOLO: por defecto se usa un ensamble de tres (detector > model_paths). Para usar uno
+  solo, mas rapido, pon  ensemble: false  y elige el modelo en  model_path
+  (models/blender_best.pt, models/lisa_best.pt o models/bosch_best.pt).
 - Agregar o mover un semaforo: basta con su nombre, en la forma "via con via":
       - id: s9
         nombre: AK 68 con CL 26
@@ -86,7 +90,7 @@ cd "D:\Trabajos\Universidad\vision comp\Proyecto_semaforos\optisignal-ai\backend
 PROBLEMAS COMUNES
 -----------------
 - El mapa no muestra puntos: el backend no esta corriendo (revisa la terminal 1).
-- "Sin senal de camara" en s1: la camara virtual de OBS no esta iniciada.
+- "Sin senal de camara" en s1 con source: 0: la camara virtual de OBS no esta iniciada.
 - El backend no arranca y menciona "renders": falta la carpeta
   "frontend\smaforos blender\renders_escenarios".
 - Puerto ocupado: ya hay otro backend o panel abierto; cierralo con Ctrl+C.
