@@ -54,10 +54,16 @@ def classify_light(
     if roi_height < config["min_roi_height"] or roi_width >= roi_height:
         return unknown
 
-    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    # Concentrar el analisis en la columna optica central (75% central del ancho)
+    # descartando postes de soporte amarillos y viseras en los laterales
+    x_margin = int(roi_width * 0.125) if roi_width >= 16 else 0
+    roi_center = roi[:, x_margin : roi_width - x_margin] if x_margin > 0 else roi
+
+    hsv = cv2.cvtColor(roi_center, cv2.COLOR_BGR2HSV)
+    center_height = roi_center.shape[0]
     ratios = {
         lens: _lens_ratio(
-            hsv[i * roi_height // 3 : (i + 1) * roi_height // 3], config["colors"][lens]
+            hsv[i * center_height // 3 : (i + 1) * center_height // 3], config["colors"][lens]
         )
         for i, lens in enumerate(LENSES)
     }

@@ -2,3 +2,5 @@
 *
 !.gitignore
 !README.md
+!bogota_real/
+!bogota_real/**
