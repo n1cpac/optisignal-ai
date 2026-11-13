@@ -1,11 +1,16 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { DatePipe } from '@angular/common';
 
-import { Destinatario, Reporte } from '../../../core/models/reporte.model';
+import { Reporte } from '../../../core/models/reporte.model';
 
-const NOMBRES_DESTINATARIO: Record<Destinatario, string> = {
-  transito: 'Policía de tránsito',
-  tecnicos: 'Técnicos de reparación'
+const NOMBRES_ANOMALIA: Record<string, string> = {
+  AMARILLO_INTERMITENTE: 'Amarillo intermitente en falla',
+  ALL_LIGHTS_OFF: 'Semáforo apagado (sin luces)',
+  MULTIPLE_LIGHTS_ON: 'Múltiples luces encendidas',
+  LIGHT_STUCK: 'Luz estancada en una fase',
+  INVALID_TRANSITION: 'Secuencia de luces inválida',
+  LOW_BRIGHTNESS: 'Baja intensidad luminosa',
+  OBSTRUCTED_LIGHT: 'Lente obstruido'
 };
 
 @Component({
@@ -19,35 +24,14 @@ const NOMBRES_DESTINATARIO: Record<Destinatario, string> = {
       }
       <span class="ubicacion">{{ reporte.ubicacion }}</span>
       <span class="fecha">{{ reporte.fecha | date: 'dd/MM/yyyy HH:mm' }}</span>
-      <span class="descripcion">{{ reporte.descripcion }}</span>
-
-      @if (detalle) {
-        <span class="estado" [class]="'estado ' + estado.clase">{{ estado.texto }}</span>
-        @if (reporte.opciones; as o) {
-          @if (reporte.alertasVerificadas) {
-            <span class="dato">
-              Verificó {{ reporte.alertasVerificadas }} {{ reporte.alertasVerificadas === 1 ? 'alerta' : 'alertas' }}
-            </span>
-          }
-          <span class="dato">
-            {{ o.coincide ? 'Coincide' : 'No coincide' }} ·
-            {{ o.falla === null ? 'Fallo sin registrar' : o.falla ? 'Fallo en el semáforo' : 'Sin fallo' }}
-          </span>
-          @if (o.falla) {
-            <span class="dato">Enviado a: {{ destinatarios(o.destinatarios) }}</span>
-          }
-          @if (o.comentario) {
-            <span class="comentario">“{{ o.comentario }}”</span>
-          }
-        }
-      }
+      <span class="nombre-alerta">{{ nombreAlerta }}</span>
     </button>
   `,
   styles: [`
     .item {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
       width: 100%;
       padding: 10px 12px;
       border: 0;
@@ -65,33 +49,51 @@ const NOMBRES_DESTINATARIO: Record<Destinatario, string> = {
     @keyframes destello { 50% { background: #5a4a12; } }
     @media (prefers-reduced-motion: reduce) { .item.nueva { animation: none; background: #3d3412; } }
     .etiqueta-nueva { color: #ffd54f; font-size: 12px; font-weight: 700; }
-    .ubicacion { font-weight: 600; }
+    .ubicacion { font-weight: 600; font-size: 14px; }
     .fecha { font-size: 12px; color: #aaa; }
-    .descripcion { font-size: 13px; }
-    .estado { align-self: flex-start; margin-top: 4px; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
-    .estado.atendido { background: #2e5e12; }
-    .estado.pendiente { background: #8a1f1c; }
-    .dato { font-size: 12px; color: #ccc; }
-    .comentario { font-size: 12px; font-style: italic; color: #ddd; }
+    .nombre-alerta { font-size: 13px; color: #e2e8f0; }
   `]
 })
 export class ReportItemComponent {
   @Input({ required: true }) reporte!: Reporte;
   @Input() seleccionado = false;
-  /** Muestra si fue atendido y las opciones y el comentario del reporte (pestana de historial). */
+  /** Conservado por compatibilidad con el contenedor; el resumen izquierdo siempre se muestra simplificado. */
   @Input() detalle = false;
   /** Llego una alerta nueva de este semaforo y aun no se abre: se resalta y sube al principio. */
   @Input() nueva = false;
   @Output() seleccionar = new EventEmitter<void>();
 
-  /** Verificado: el operario lo confirmo con un reporte (una alerta atendida o un reporte propio). */
-  protected get estado(): { texto: string; clase: string } {
-    return this.reporte.opciones
-      ? { texto: 'Reporte verificado', clase: 'atendido' }
-      : { texto: 'No verificado', clase: 'pendiente' };
-  }
+  protected get nombreAlerta(): string {
+    const desc = this.reporte.descripcion ?? '';
+    for (const [codigo, nombre] of Object.entries(NOMBRES_ANOMALIA)) {
+      if (desc.includes(codigo)) {
+        return nombre;
+      }
+    }
 
-  protected destinatarios(lista: Destinatario[]): string {
-    return lista.length ? lista.map((d) => NOMBRES_DESTINATARIO[d]).join(', ') : 'nadie';
+    if (!this.reporte.automatica && this.reporte.opciones) {
+      const o = this.reporte.opciones;
+      if (o.falla) {
+        const base =
+          o.tipoFalla === 'dano'
+            ? 'Falla por daño'
+            : o.tipoFalla === 'funcionamiento'
+              ? 'Falla por funcionamiento'
+              : 'Falla en semáforo';
+        if (o.semaforosAfectados?.length) {
+          return `${base} · Semáforo #${o.semaforosAfectados.join(', #')}`;
+        }
+        return base;
+      }
+      if (o.falla === false) {
+        return 'Funcionamiento normal (sin fallo)';
+      }
+    }
+
+    return desc
+      .replace(/^\[Alerta Automatica Vision\]\s*/i, '')
+      .replace(/^Falla:\s*/i, '')
+      .split('.')[0]
+      .trim() || 'Alerta de semáforo';
   }
 }

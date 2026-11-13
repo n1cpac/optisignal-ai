@@ -26,7 +26,11 @@ NEXT_STATE = {
     "AMARILLO_DESP": "ROJO",
 }
 # Fallas que duran mientras el semaforo esta en ese estado
-CONDITION_ANOMALIES = {"OFF": "ALL_LIGHTS_OFF", "MULTIPLE": "MULTIPLE_LIGHTS_ON"}
+CONDITION_ANOMALIES = {
+    "OFF": "ALL_LIGHTS_OFF",
+    "MULTIPLE": "MULTIPLE_LIGHTS_ON",
+    "FLASHING_YELLOW": "AMARILLO_INTERMITENTE",
+}
 
 
 @dataclass

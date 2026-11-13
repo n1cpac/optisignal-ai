@@ -1,5 +1,5 @@
-OPTISIGNAL - COMO EJECUTAR EL BACKEND Y EL PANEL
-================================================
+OPTISIGNAL-AI - COMO EJECUTAR EL BACKEND Y EL PANEL
+===================================================
 
 Se necesitan DOS terminales de PowerShell abiertas al mismo tiempo: una para el backend
 y otra para el panel. No cierres ninguna mientras uses el sistema.
@@ -7,30 +7,36 @@ y otra para el panel. No cierres ninguna mientras uses el sistema.
 
 REQUISITOS (solo la primera vez)
 --------------------------------
-- Python 3.11  (comprobar con:  py -3.11 --version)
-- Node.js      (comprobar con:  node --version)
-- Solo si usas la camara en vivo (ver CAMBIOS FRECUENTES): OBS abierto con "Iniciar camara
-  virtual" activo, capturando Blender.
+- Python 3.12 (o 3.11) con las dependencias de backend/requirements.txt instaladas.
+- Node.js y npm (comprobar con: node --version).
+- Videos de validacion reales en data/test_videos/cctv_s1.mp4 ... cctv_s8.mp4.
+- Pesos del detector unificado en models/optisignal_best.pt.
+
+Nota: No se requiere camara fisica ni prototipo externo (la validacion fisica con ESP32 fue
+descartada y reemplazada por las 8 secuencias urbanas reales de Bogota D.C.).
 
 
 1. BACKEND  (terminal 1)
 ------------------------
-cd "D:\Trabajos\Universidad\vision comp\Proyecto_semaforos\optisignal-ai\backend"
+Desde la raiz del repositorio (optisignal-ai):
 
-Solo la primera vez (crea el entorno e instala dependencias; tarda varios minutos):
-  py -3.11 -m venv .venv
-  .venv\Scripts\pip install -r requirements.txt
+Solo si creas un entorno virtual por primera vez:
+  python -m venv backend\.venv
+  backend\.venv\Scripts\pip install -r backend\requirements.txt
 
-Cada vez:
-  .venv\Scripts\python -m uvicorn app.main:app --port 8000 --timeout-graceful-shutdown 2
+Para ejecutar el backend:
+  $env:PYTHONPATH="backend"
+  python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --timeout-graceful-shutdown 2
 
-Listo cuando aparece:  Uvicorn running on http://127.0.0.1:8000
-No abras http://127.0.0.1:8000 en el navegador: el backend solo entrega datos (muestra "Not Found").
+(Si usas el entorno virtual del backend, reemplaza `python` por `backend\.venv\Scripts\python`.)
+
+Listo cuando aparece:  Uvicorn running on http://0.0.0.0:8000
+La API REST responde en http://localhost:8000 (Swagger UI en http://localhost:8000/docs).
 
 
-2. PANEL  (terminal 2)
-----------------------
-cd "D:\Trabajos\Universidad\vision comp\Proyecto_semaforos\optisignal-ai\frontend\Semaforos 3\panel-supervision-semaforo"
+2. PANEL WEB ANGULAR  (terminal 2)
+----------------------------------
+cd "frontend\Semaforos 3\panel-supervision-semaforo"
 
 Solo la primera vez:
   npm install
@@ -41,56 +47,56 @@ Cada vez:
 Listo cuando aparece:  Local: http://localhost:4200/
 
 
-3. ABRIR EL PANEL
------------------
+3. ABRIR Y USAR EL PANEL
+------------------------
 En el navegador:  http://localhost:4200
-(usa "localhost", no "127.0.0.1")
 
-- s1 (AC 13 con CL 13) muestra el video de prueba data\test_videos\test1.mp4 en bucle, o la camara
-  en vivo de OBS/Blender si la activas. Haz clic en su punto del mapa.
-- s2 a s8 muestran un render al azar de "frontend\smaforos blender\renders_escenarios";
-  cambian cada vez que se reinicia el backend.
-- En la terminal 1 deben aparecer lineas "GET /semaforos 200" cada 1,5 s: el panel esta conectado.
+- El mapa carga las 8 intersecciones activas de Bogota D.C. (s1 a s8), reproduciendo en
+  bucle a 15 FPS los videos de data/test_videos/cctv_s1.mp4 a cctv_s8.mp4.
+- Al seleccionar un semaforo se visualiza el stream MJPEG en tiempo real con las cajas
+  estabilizadas y numeradas de izquierda a derecha (#1, #2, #3...).
+- El panel izquierdo muestra las alertas activas simplificadas (zona, fecha/hora y alerta).
+- Al enviar un reporte desde el detalle de una interseccion puedes indicar si hubo falla,
+  elegir tipo de falla ("funcionamiento" o "dano") y seleccionar los numeros de cabezales
+  afectados (#1..#N). La alerta reportada sale de la vista "Actuales" y pasa a "Historial"
+  junto con su imagen de escena correspondiente (data/history_scenes/escena_s1..s8.png).
+- En la esquina inferior izquierda hay un boton discreto de reinicio de base de datos que
+  llama a POST /reportes/reset para limpiar reportes y re-evaluar las alertas vivas.
 
 
 4. DETENER
 ----------
-Ctrl+C en cada terminal. Si el backend no se cierra al primer intento, pulsa Ctrl+C otra vez.
+Ctrl+C en cada terminal. Si uvicorn tarda en cerrar, pulsa Ctrl+C otra vez.
 
 
-CAMBIOS FRECUENTES  (archivo CONFIG_PARAMETERS.yaml, en la raiz del proyecto)
-------------------------------------------------------------------------------
+CONFIGURACION  (archivo CONFIG_PARAMETERS.yaml, en la raiz del proyecto)
+------------------------------------------------------------------------
 Reinicia el backend despues de cualquier cambio en este archivo.
 
-- Usar la camara en vivo de OBS/Blender en lugar del video de prueba: en s1 cambia
-      source: data/test_videos/test1.mp4
-  por
-      source: 0
-  Si OBS no aparece (s1 dice "Sin senal de camara"): verifica que la camara virtual este
-  iniciada en OBS, o prueba  source: 1  (otro indice de camara).
-- Modelos YOLO: por defecto se usa un ensamble de tres (detector > model_paths). Para usar uno
-  solo, mas rapido, pon  ensemble: false  y elige el modelo en  model_path
-  (models/blender_best.pt, models/lisa_best.pt o models/bosch_best.pt).
-- Agregar o mover un semaforo: basta con su nombre, en la forma "via con via":
-      - id: s9
-        nombre: AK 68 con CL 26
-        source: frontend/smaforos blender/renders_escenarios
-  El backend lo ubica en ese cruce del mapa. Se escribe como en la Malla Vial (AC, AK, CL, KR, TV,
-  DG; "Calle 26" tambien sirve). "CL 13" y "CL 13 S" son vias distintas. Si el cruce no existe, es
-  ambiguo (las vias se cruzan dos veces) o es una glorieta, el backend no arranca y dice por que:
-  en ese caso agrega a mano  lat:  y  lng:  al semaforo.
+- Modelo detector: configurado en detector > model_path (por defecto models/optisignal_best.pt,
+  input_size: 1280, ensemble: false).
+- Tracking y estabilizacion: se ajustan bajo detector > tracker (type: bytetrack,
+  kalman_process_noise, kalman_measurement_noise, temporal_window_seconds: 5.5, etc.).
+- FPS de reproduccion y captura: camera > fps (por defecto 15 FPS).
+- Agregar o reubicar un semaforo: indica id, nombre en formato "via con via" (por ejemplo
+  "AK 68 con CL 26") y source (ruta a video o indice de camara). Si la interseccion no tiene
+  lat/lng manuales, el backend la ubica automaticamente usando la Malla Vial de Bogota.
 
 
-PRUEBAS AUTOMATICAS  (opcional, terminal 1 con el backend detenido)
---------------------------------------------------------------------
-cd "D:\Trabajos\Universidad\vision comp\Proyecto_semaforos\optisignal-ai\backend"
-.venv\Scripts\python -m pytest tests -q
+PRUEBAS AUTOMATICAS  (con el backend detenido)
+----------------------------------------------
+Desde la raiz del repositorio:
+  $env:PYTHONPATH="backend"
+  pytest backend/tests -v
+
+Cobertura actual: 83 pruebas (API, base de datos, clasificador HSV, FSM, georreferenciacion
+y casos reales de las 8 camaras de Bogota s1-s8).
 
 
 PROBLEMAS COMUNES
 -----------------
-- El mapa no muestra puntos: el backend no esta corriendo (revisa la terminal 1).
-- "Sin senal de camara" en s1 con source: 0: la camara virtual de OBS no esta iniciada.
-- El backend no arranca y menciona "renders": falta la carpeta
-  "frontend\smaforos blender\renders_escenarios".
-- Puerto ocupado: ya hay otro backend o panel abierto; cierralo con Ctrl+C.
+- El mapa no muestra puntos: verifica que el backend este ejecutandose en el puerto 8000.
+- Videos no encontrados al arrancar: verifica que existan data/test_videos/cctv_s1.mp4 a s8.mp4
+  y el modelo models/optisignal_best.pt.
+- El historial no muestra imagen de escena: verifica la carpeta data/history_scenes/.
+- Puerto ocupado (8000 o 4200): cierra la instancia previa antes de iniciar nuevamente.

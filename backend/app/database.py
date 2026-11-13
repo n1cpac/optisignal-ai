@@ -21,6 +21,8 @@ ADDED_COLUMNS = {
     "abierta_en": "TEXT",  # primera vez que un operador abrio la alerta en el panel
     # 1: alerta de una direccion que su semaforo ya no tiene (se movio o se quito): ya no esta pendiente
     "archivada": "INTEGER NOT NULL DEFAULT 0",
+    "tipo_falla": "TEXT",
+    "semaforos_afectados": "TEXT",
 }
 
 # Actuales: alertas del sistema sin atender y de hoy. Historial: cada reporte del operador una sola vez
@@ -73,12 +75,15 @@ def insert_reporte(envio: EnvioReporte, ubicacion: str) -> int:
     prefijo = "Coincide con la imagen" if envio.coincide else "No coincide con la imagen"
     prefijo += ". Fallo en el semaforo" if envio.falla else ". Sin fallo"
     descripcion = f"{prefijo}: {comentario}" if comentario else f"{prefijo}."
+    tipo_falla = envio.tipoFalla if envio.falla else None
+    semaforos_afectados = json.dumps(envio.semaforosAfectados if envio.falla else [])
     with closing(_connect()) as db, db:
         cursor = db.execute(
             "INSERT INTO reportes (semaforo_id, ubicacion, fecha, descripcion, coincide, destinatarios, "
-            "automatica, falla, comentario) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)",
+            "automatica, falla, comentario, tipo_falla, semaforos_afectados) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)",
             (envio.semaforoId, ubicacion, datetime.now(timezone.utc).isoformat(), descripcion,
-             envio.coincide, json.dumps(envio.destinatarios), envio.falla, comentario),
+             envio.coincide, json.dumps(envio.destinatarios), envio.falla, comentario,
+             tipo_falla, semaforos_afectados),
         )
         db.execute(
             "UPDATE reportes SET atendida_por = ? "
@@ -146,12 +151,57 @@ def alerta_vista(alerta_id: int) -> bool:
     return bool(row and row[0])
 
 
-def _opciones(id_, fecha, coincide, falla, destinatarios, comentario) -> Optional[Opciones]:
+def semaforo_de_reporte(reporte_id: int) -> Optional[str]:
+    """Devuelve el semaforo_id al que pertenece un reporte o alerta, o None si no existe."""
+    try:
+        with closing(_connect()) as db:
+            row = db.execute("SELECT semaforo_id FROM reportes WHERE id = ?", (reporte_id,)).fetchone()
+        return row[0] if row else None
+    except sqlite3.OperationalError:
+        return None
+
+
+def semaforo_atendido_hoy(semaforo_id: str, hoy: Optional[str] = None) -> bool:
+    """True si el operador ya registro un reporte hoy para este semaforo."""
+    try:
+        with closing(_connect()) as db:
+            row = db.execute(
+                "SELECT 1 FROM reportes WHERE semaforo_id = ? AND automatica = 0 AND fecha >= ? LIMIT 1",
+                (semaforo_id, hoy or inicio_de_hoy()),
+            ).fetchone()
+        return row is not None
+    except sqlite3.OperationalError:
+        return False
+
+
+def reset_reportes() -> None:
+    """Limpia todos los reportes y alertas para reiniciar la demostracion."""
+    with closing(_connect()) as db, db:
+        db.execute("DELETE FROM reportes")
+
+
+def _opciones(
+    id_,
+    fecha,
+    coincide,
+    falla,
+    destinatarios,
+    comentario,
+    tipo_falla=None,
+    semaforos_afectados=None,
+) -> Optional[Opciones]:
     if id_ is None:
         return None
-    return Opciones(reporteId=str(id_), fecha=fecha, coincide=bool(coincide),
-                    falla=None if falla is None else bool(falla),
-                    destinatarios=json.loads(destinatarios), comentario=comentario)
+    return Opciones(
+        reporteId=str(id_),
+        fecha=fecha,
+        coincide=bool(coincide),
+        falla=None if falla is None else bool(falla),
+        destinatarios=json.loads(destinatarios),
+        comentario=comentario,
+        tipoFalla=tipo_falla,
+        semaforosAfectados=json.loads(semaforos_afectados) if semaforos_afectados else [],
+    )
 
 
 def inicio_de_hoy() -> str:
@@ -174,7 +224,8 @@ def list_reportes(vista: str, pagina: int = 1, tamano: int = MAX_REPORTES,
             SELECT r.id, r.semaforo_id, r.ubicacion, r.fecha, r.descripcion, r.automatica,
                    (SELECT count(*) FROM reportes a WHERE a.atendida_por = r.id),
                    (SELECT a.descripcion FROM reportes a WHERE a.atendida_por = r.id ORDER BY a.id DESC LIMIT 1),
-                   o.id, o.fecha, o.coincide, o.falla, o.destinatarios, o.comentario
+                   o.id, o.fecha, o.coincide, o.falla, o.destinatarios, o.comentario,
+                   o.tipo_falla, o.semaforos_afectados
             FROM reportes r
             LEFT JOIN reportes o ON o.id = CASE WHEN r.automatica = 1 THEN r.atendida_por ELSE r.id END
             WHERE {where}

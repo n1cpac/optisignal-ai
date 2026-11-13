@@ -1,20 +1,18 @@
-# Checklist de Fase 3 — Datasets
+# Checklist de Fase 3 — Datasets y datos de validación
 
-## Implementado
+## Etapa 1: Datasets abiertos de referencia (LISA y Bosch)
 
-- [x] Limitar las fuentes a LISA y Bosch (BSTLD).
-- [x] Detectar estructura nativa local y evitar descargas cuando los datos existen.
-- [x] Descargar desde Google Drive como fallback para fuentes ausentes.
-- [x] Convertir anotaciones LISA CSV y Bosch YAML a una clase YOLO.
-- [x] Mantener los proveedores independientes y su raw data intacta.
-- [x] Crear particiones reproducibles 70/20/10, manifiestos y `data.yaml`.
-- [x] Validar etiquetas e imágenes.
-- [x] Ignorar raw data y derivados pesados mediante reglas Git.
-- [x] Sincronizar README, guía, reporte y plan con el pipeline.
-- [x] Ejecutar conversión, partición y validación local de ambos datasets (`PASS`).
+- [x] Delimitar fuentes públicas iniciales a **LISA** y **Bosch Small Traffic Lights Dataset (BSTLD)**.
+- [x] Convertir anotaciones LISA CSV y Bosch YAML a clase única YOLO (`traffic_light`).
+- [x] Mantener proveedores independientes y generar particiones reproducibles 70/20/10 (`seed=42`) con `data.yaml` y manifiesto.
+- [x] Validar localmente ambos conjuntos: **LISA** (36,775 imágenes; 232,348 cajas) y **Bosch** (7,147 imágenes; 13,486 cajas), con 0 etiquetas inválidas.
 
-## Validación operacional
+## Etapa 2: Evolución hacia datos reales de Bogotá
 
-La ejecución local produjo 36,775 imágenes LISA y 7,147 Bosch, ambas con 0 etiquetas ausentes o inválidas. No se versionan los resultados que contienen datos derivados pesados.
+- [x] Evaluar brecha de dominio de LISA/Bosch y pruebas sintéticas (`data/processed/blender`) frente a semáforos reales de Bogotá.
+- [x] Construir el dataset especializado **`data/processed/bogota_augmented`** en formato YOLO de 1 clase (`traffic_light`).
+- [x] Particionar **`bogota_augmented`** en 70/20/10 (`seed=42`): **315 `train` / 90 `val` / 45 `test`** (**450 imágenes totales**).
+- [x] Consolidar el banco de validación continua con los **8 videos reales de Bogotá** (`data/test_videos/cctv_s1.mp4` a `cctv_s8.mp4`) y las **8 escenas históricas** (`data/history_scenes/escena_s1.png` a `escena_s8.png`).
+- [x] Limpiar del repositorio assets pesados sin uso durante la auditoría de optimización.
 
-**Estado de implementación:** Fase 3 implementada y validada con los datasets locales disponibles.
+**Estado:** ✅ Completada (datos base y conjunto especializado de Bogotá integrados en el sistema funcional)

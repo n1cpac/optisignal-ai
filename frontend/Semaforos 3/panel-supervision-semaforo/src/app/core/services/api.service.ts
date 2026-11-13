@@ -37,6 +37,11 @@ export class ApiService {
     return this.http.post<{ ok: boolean }>(`${this.baseUrl}/reportes/${id}/abrir`, {});
   }
 
+  /** Limpia reportes/alertas en base de datos y regenera las alertas activas actuales. */
+  resetearReportes(): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(`${this.baseUrl}/reportes/reset`, {});
+  }
+
   /** Consulta periodica. Si una peticion falla, se salta ese ciclo y sigue. */
   pollSemaforos(intervalMs = INTERVALO_SEMAFOROS_MS): Observable<Semaforo[]> {
     return timer(0, intervalMs).pipe(

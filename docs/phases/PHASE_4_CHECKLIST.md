@@ -1,118 +1,43 @@
-# Checklist de Fase 4 — Detección con YOLO
+# Checklist de Fase 4 — Detección con YOLO y Tracking
 
 ## Objetivo
-Implementar un flujo reproducible de entrenamiento y evaluación del detector YOLO para localizar semáforos en imágenes y video.
+Entrenar un detector YOLO rápido y preciso, sustituir el ensamble lento inicial por un modelo único adaptado a Bogotá D.C. e integrarlo con tracking temporal para operación estable a 15 FPS.
 
 ---
 
 ## Tareas completadas
 
-### Notebook Jupyter
-- [x] Crear `notebooks/phase_4_yolo_training.ipynb`
-- [x] Sección 1: Instalación de dependencias
-- [x] Sección 2: Verificación explícita de CUDA y prueba breve de GPU; no continuar silenciosamente por CPU
-- [x] Sección 3: Configuración de parámetros editables
-- [x] Sección 4: Validación de estructura de datos
-- [x] Sección 5: Entrenamiento independiente (LISA y Bosch)
-- [x] Sección 6: Evaluación con métricas (Precision, Recall, mAP@50)
-- [x] Sección 7: Visualización de resultados
-- [x] Sección 8: Prueba de inferencia
-- [x] Sección 9: Resumen y próximos pasos
+### Etapa 1: Línea base y experimentación previa
+- [x] Entrenar modelos exploratorios separados sobre LISA y Bosch (`640x640`).
+- [x] Diagnosticar cuellos de botella del ensamble en CPU (~2 FPS), desvío de cajas sin tracking y pérdida de semáforos pequeños a `640px`.
 
-### Documentación
-- [x] Crear `PHASE_4_YOLO_TRAINING.md`
-- [x] Documentar estructura de datos esperada
-- [x] Instrucciones de ejecución local
-- [x] Instrucciones de ejecución en Colab
-- [x] Parámetros configurables
-- [x] Métricas esperadas
-- [x] Archivos generados
-- [x] Limitaciones y consideraciones
-- [x] Troubleshooting
+### Etapa 2: Modelo unificado de Bogotá (`optisignal_best.pt`)
+- [x] Preparar dataset especializado `bogota_augmented` (450 imágenes, split 315/90/45).
+- [x] Entrenar **YOLOv8n** en RTX 4060 Ti con *transfer learning* (`freeze=10`, 20 épocas).
+- [x] Alcanzar **99.50 % mAP@50**, **98.62 % mAP@50-95**, **99.97 % Precision** y **100.0 % Recall**.
+- [x] Desactivar el ensamble en [`CONFIG_PARAMETERS.yaml`](../../CONFIG_PARAMETERS.yaml) (`ensemble: false`) y activar `models/optisignal_best.pt` a `input_size: 1280`.
 
-### Validaciones
-- [x] Notebook es JSON válido
-- [x] Celdas ejecutables en orden
-- [x] Detección estricta de CUDA implementada
-- [x] Rutas reproducibles (local y Colab)
-- [x] Configuración sin modificar código
-- [x] Entrenamiento limitado (EPOCHS=5 por defecto)
-- [x] Evaluación con métricas reales
-- [x] Visualización de resultados
+### Etapa 3: Tracking, compensación de movimiento y estabilidad
+- [x] Implementar filtrado geométrico anti-peatones/postes/OSD y completado de pórticos en [`backend/app/detector.py`](../../backend/app/detector.py).
+- [x] Implementar compensación global de movimiento con flujo óptico **Lucas-Kanade + RANSAC** en [`backend/app/motion.py`](../../backend/app/motion.py).
+- [x] Implementar **ByteTrack + Filtro de Kalman 6D + correlación NCC + numeración `#1..#N`** en [`backend/app/tracker.py`](../../backend/app/tracker.py).
+- [x] Calibrar reproducción a **15 FPS** y validar los 8 casos reales de Bogotá (`cctv_s1.mp4`–`cctv_s8.mp4`) en [`backend/tests/test_bogota_pipeline.py`](../../backend/tests/test_bogota_pipeline.py).
 
 ---
 
-## Parámetros de entrenamiento
+## Parámetros vigentes en producción (`CONFIG_PARAMETERS.yaml`)
 
-| Parámetro | Valor | Descripción |
-|---|---|---|
-| Modelo YOLO | yolov8n | Nano para inferencia rápida |
-| Épocas | 5 (default) | Cambiar a 50-100 para entrenamiento real |
-| Batch size | 8 | Punto de partida para RTX 4060 Ti de 8 GB |
-| Tamaño imagen | 640x640 | Estándar YOLO |
-| Early stopping | 10 épocas | Paciencia para detener si no mejora |
-| Seed | 42 | Reproducibilidad |
-| Datasets | LISA, Bosch | Entrenamiento independiente |
-
----
-
-## Métricas esperadas
-
-### LISA (36,775 imágenes)
-- Precision: 0.85-0.92
-- Recall: 0.80-0.88
-- mAP@50: 0.88-0.95
-- Tiempo inferencia: 15-25 ms/imagen (GPU)
-
-### Bosch (7,147 imágenes)
-- Precision: 0.80-0.90
-- Recall: 0.75-0.85
-- mAP@50: 0.82-0.92
-- Tiempo inferencia: 15-25 ms/imagen (GPU)
+| Parámetro | Valor actual | Motivo técnico |
+| :--- | :--- | :--- |
+| `model_path` | `models/optisignal_best.pt` | Modelo único unificado adaptado a Bogotá |
+| `ensemble` | `false` | Evita ejecutar 3 modelos en CPU (mejora de ~2 FPS a 15 FPS) |
+| `input_size` | `1280` | Permite detectar semáforos pequeños y lejanos (`s4`, `s3`) |
+| `confidence_threshold` / `low` | `0.25` / `0.12` | Asociación de doble umbral estilo ByteTrack |
+| `iou_threshold` | `0.45` | Supresión de cajas duplicadas sin fusionar cabezales vecinos |
+| `tracker.type` | `bytetrack` | Identidad persistente entre cuadros |
+| `temporal_window_seconds` | `5.5` | Ventana temporal para confirmar `AMARILLO_INTERMITENTE` |
+| `camera.fps` | `15` | Sincronía fluida de análisis y stream en CPU |
 
 ---
 
-## Archivos generados
-
-### Pesos entrenados
-- `models/lisa_best.pt`
-- `models/bosch_best.pt`
-
-### Resultados
-- `results/phase_4/{dataset}/train/` - Logs y checkpoints
-- `results/phase_4/{dataset}_evaluation.json` - Métricas
-- `results/phase_4/training_metrics.png` - Gráficos
-- `results/phase_4/{dataset}_inference_samples.png` - Muestras
-
----
-
-## Ejecución
-
-### Local
-```bash
-jupyter notebook notebooks/phase_4_yolo_training.ipynb
-```
-
-### Google Colab
-1. Subir notebook a Google Drive
-2. Abrir con Google Colaboratory
-3. Ejecutar celdas en orden
-
----
-
-## Próximos pasos
-
-1. **Fase 5:** Clasificación de colores (HSV)
-2. **Fase 6:** Máquina de estados finitos (FSM)
-3. **Fase 7:** Backend FastAPI
-4. **Fase 8:** Frontend Angular
-5. **Fase 9:** Integración del sistema
-6. **Fase 10:** Pruebas y validación
-
----
-
-**Fecha de creación:** 2026-09-28
-**Responsable:** Integrante 1 (Visión por Computador)
-**Estado:** ✅ Completado
-
-**Nota de entorno local:** PyTorch debe instalarse con la build CUDA en el mismo Python que usa el kernel de VS Code. La comprobación real de `torch.cuda.is_available()` debe confirmarse en ese kernel antes del entrenamiento; el notebook ahora detiene el flujo si CUDA no está disponible.
+**Estado de fase:** ✅ Completada (en ajuste de detalles finales previos a la presentación)

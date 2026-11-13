@@ -3,11 +3,19 @@ export type EstadoLuz = 'rojo' | 'amarillo' | 'verde' | 'apagado';
 /** Lo que ve la camara. 'sin_deteccion': YOLO no halla el semaforo; 'sin_senal': no llega video. */
 export type EstadoVisual =
   | EstadoLuz
+  | 'amarillo_intermitente'
   | 'multiple'
   | 'sin_deteccion'
   | 'desconocido'
   | 'sin_senal';
 export type EstadoOperativo = 'normal' | 'anomalia';
+
+export interface Cabezal {
+  numero: number;
+  estadoVisual: EstadoVisual;
+  confianza: number;
+  anomalia?: string | null;
+}
 
 export interface Semaforo {
   id: string;
@@ -22,4 +30,5 @@ export interface Semaforo {
   confianza: number | null; // confianza de YOLO, de 0 a 1
   imagenUrl: string; // video en vivo de la camara (MJPEG)
   ultimaActualizacion: string; // ISO 8601
+  cabezales?: Cabezal[];
 }

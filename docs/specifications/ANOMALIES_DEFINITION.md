@@ -2,176 +2,80 @@
 
 ## Introducción
 
-Este documento especifica las seis anomalías que el sistema OptiSignal-AI detectará y clasificará. Cada anomalía incluye su descripción técnica, condiciones de detección, umbrales y ejemplos.
+Este documento describe las anomalías y condiciones operativas auditadas por el sistema actual sobre la intersección y por cada cabezal individual (`#1..#N`), reflejando la lógica implementada en [`classifier.py`](../../backend/app/classifier.py), [`tracker.py`](../../backend/app/tracker.py), [`state_machine.py`](../../backend/app/state_machine.py) y [`CONFIG_PARAMETERS.yaml`](../../CONFIG_PARAMETERS.yaml).
 
 ---
 
-## 1. ALL_LIGHTS_OFF (Todas las luces apagadas)
+## 1. `ALL_LIGHTS_OFF` (Apagado total)
 
-### Descripción
-Ninguna de las tres luces (Rojo, Amarillo, Verde) emite luminancia detectable. El semáforo está completamente apagado o desconectado.
-
-### Condiciones de detección
-- El detector YOLO localiza el cabezal del semáforo (confianza ≥ 0.5).
-- En las tres ROIs (superior, central, inferior), el porcentaje de píxeles encendidos es < θ_act (umbral de activación).
-- Esta condición persiste durante ≥ N fotogramas (ventana de confirmación).
-
-### Umbrales
-- Confianza mínima del detector: 0.5
-- Porcentaje de píxeles encendidos por lente: < 5% (θ_act = 0.05)
-- Ventana de confirmación: N ≥ 8 fotogramas (≈ 0.27 segundos a 30 FPS)
-
-### Impacto
-- **Severidad:** Crítica
-- **Causa probable:** Falla de alimentación, desconexión de LEDs, fusible quemado.
-- **Acción recomendada:** Alerta inmediata al operador, revisión de fuente de poder.
+- **Descripción:** Ninguno de los tres lentes (rojo, amarillo, verde) supera el umbral de activación de forma sostenida.
+- **Condiciones reales en el pipeline:**
+  - En el clasificador HSV (`classifier.py`), los tres tercios verticales de la columna central (75 % del ancho de la ROI) obtienen una fracción de píxeles encendidos menor a `activation_threshold: 0.08`.
+  - El tracker verifica que **no exista patrón de parpadeo amarillo** en la ventana temporal (`5.5 s`) y que la ausencia de luz persista superando la histéresis del sistema.
+  - **Protección contra falsos apagados:** si un semáforo ya demostró estar encendido en el ciclo (`ever_lit`) y no parpadea en amarillo, o tiene baja confianza transitoria al reiniciar bucle (`peak_confidence < 0.75`), **no** se degrada falsamente a `ALL_LIGHTS_OFF`.
+- **Severidad:** Crítica.
 
 ---
 
-## 2. MULTIPLE_LIGHTS_ON (Dos o más luces encendidas simultáneamente)
+## 2. `AMARILLO_INTERMITENTE` (Parpadeo preventivo / intermitente)
 
-### Descripción
-Dos o más lentes están emitiendo luz simultáneamente en un estado que no es válido según la secuencia colombiana. Ejemplo: Rojo y Verde encendidos al mismo tiempo (conflicto de tráfico).
-
-### Condiciones de detección
-- El detector YOLO localiza el cabezal (confianza ≥ 0.5).
-- Dos o más ROIs tienen porcentaje de píxeles encendidos ≥ θ_act.
-- Esta condición persiste durante ≥ N fotogramas.
-
-### Umbrales
-- Confianza mínima del detector: 0.5
-- Porcentaje de píxeles encendidos por lente: ≥ 5% (θ_act = 0.05)
-- Ventana de confirmación: N ≥ 8 fotogramas
-
-### Impacto
-- **Severidad:** Crítica
-- **Causa probable:** Falla en el controlador, cortocircuito, contacto defectuoso.
-- **Acción recomendada:** Alerta inmediata, detención del tráfico, revisión de circuitería.
+- **Descripción:** Condición incorporada tras las pruebas con cámaras reales de Bogotá (`s1` AK 80 con AC 55 S, `s5` KR 14 con CL 44 S), donde uno o más semáforos alternan indefinidamente entre **amarillo encendido y apagado**.
+- **Por qué fue necesaria:** Sin análisis temporal, los fotogramas apagados entre destellos disparaban falsas alertas de `ALL_LIGHTS_OFF` o alternaban erráticamente entre `AMARILLO`, `APAGADO` y `MULTIPLE`.
+- **Condiciones reales en el pipeline (`tracker.py`):**
+  - Se analiza la secuencia temporal dentro de `temporal_window_seconds: 5.5` segundos.
+  - Se verifica alternancia efectiva entre lecturas `YELLOW` y `OFF` con una proporción mínima de amarillo (`flash_min_Ratio: 0.18`).
+  - El cabezal pasa a estado visual `amarillo_intermitente` y la FSM (`CONDITION_ANOMALIES["FLASHING_YELLOW"]`) consolida la alerta `AMARILLO_INTERMITENTE` sin confundirla con `ALL_LIGHTS_OFF`.
+- **Severidad:** Operativa / Alerta de precaución.
 
 ---
 
-## 3. INVALID_TRANSITION (Transición no reglamentaria)
+## 3. `MULTIPLE_LIGHTS_ON` (Múltiples luces encendidas)
 
-### Descripción
-El semáforo realiza un cambio de estado que viola la secuencia legal colombiana. Ejemplos:
-- Transición directa de Rojo a Verde sin pasar por Amarillo de preparación.
-- Transición de Verde a Rojo sin pasar por Amarillo de despeje.
-- Salto a un estado no permitido desde el estado actual.
-
-### Condiciones de detección
-- La máquina de estados registra una transición que no está en la tabla de transiciones válidas.
-- La transición ocurre sin la presencia de la fase intermedia en Amarillo cuando es requerida.
-- Se confirma durante ≥ N fotogramas.
-
-### Umbrales
-- Ventana de confirmación: N ≥ 8 fotogramas
-- Tabla de transiciones válidas:
-  ```
-  ROJO → AMARILLO_PREP (obligatorio)
-  AMARILLO_PREP → VERDE (obligatorio)
-  VERDE → AMARILLO_DESP (obligatorio)
-  AMARILLO_DESP → ROJO (obligatorio)
-  ```
-
-### Impacto
-- **Severidad:** Crítica
-- **Causa probable:** Falla del controlador de tráfico, corrupción de firmware.
-- **Acción recomendada:** Alerta inmediata, revisión del controlador, posible cambio a modo manual.
+- **Descripción:** Dos o más lentes emiten luz al mismo tiempo en la misma ROI.
+- **Condiciones reales en el pipeline (`classifier.py` + `tracker.py`):**
+  - El detector marca dos o más tercios con fracción de píxeles `>= 0.08`.
+  - **Filtro anti-sangrado (`_filter_halo_bleed`):** para evitar falsos positivos por deslumbramiento (*bloom*) nocturno de un LED muy brillante hacia el lente vecino, una segunda luz solo cuenta como activa si alcanza al menos el **`48 %`** de la activación del lente dominante.
+  - La condición debe confirmarse temporalmente (`state_confirmation_seconds: 1.0 s`).
+- **Severidad:** Crítica.
 
 ---
 
-## 4. LIGHT_STUCK (Luz atascada / Permanencia excesiva)
+## 4. `INVALID_TRANSITION` (Transición no reglamentaria)
 
-### Descripción
-Una luz permanece encendida durante un tiempo superior al máximo permitido (τ_max). El semáforo está "congelado" en un estado.
-
-### Condiciones de detección
-- Una luz (Rojo, Amarillo o Verde) está activa (porcentaje de píxeles ≥ θ_act).
-- El tiempo de permanencia en ese estado supera τ_max.
-- Se confirma durante ≥ N fotogramas adicionales después de exceder τ_max.
-
-### Umbrales
-- Porcentaje de píxeles encendidos: ≥ 5% (θ_act = 0.05)
-- Tiempos máximos de permanencia (τ_max):
-  - Rojo: 120 segundos
-  - Amarillo (preparación): 5 segundos
-  - Verde: 90 segundos
-  - Amarillo (despeje): 5 segundos
-- Ventana de confirmación: N ≥ 8 fotogramas después de exceder τ_max
-
-### Impacto
-- **Severidad:** Alta
-- **Causa probable:** Falla del controlador, sensor de tiempo defectuoso, contacto pegado.
-- **Acción recomendada:** Alerta al operador, revisión del controlador, posible reinicio.
+- **Descripción:** Salto en la secuencia vial colombiana (por ejemplo, `ROJO -> VERDE` o `VERDE -> ROJO` sin paso obligatorio por amarillo).
+- **Condiciones reales en el pipeline (`state_machine.py`):**
+  - Un nuevo estado visual solo se acepta tras mantenerse continuo al menos `state_confirmation_seconds: 1.0 s`.
+  - Si el cambio entre estados mayores válidos (`NEXT_STATE`) viola el ciclo colombiano, se emite `INVALID_TRANSITION` hasta el siguiente cambio válido.
+  - Si el semáforo se pierde de vista más de `resync_after_seconds: 2.0 s`, la FSM resincroniza en `STARTUP` para no inventar saltos ilegales por oclusión.
+- **Severidad:** Crítica.
 
 ---
 
-## 5. LOW_BRIGHTNESS (Brillo insuficiente)
+## 5. `LIGHT_STUCK` (Luz atascada / permanencia excesiva)
 
-### Descripción
-Una luz está encendida pero con intensidad luminosa por debajo del umbral mínimo requerido. El LED está débil, atenuado o parcialmente defectuoso.
-
-### Condiciones de detección
-- El detector YOLO localiza el cabezal (confianza ≥ 0.5).
-- Una luz está activa (porcentaje de píxeles ≥ θ_act).
-- El valor promedio de brillo (V en HSV) en esa ROI es < V_min.
-- Esta condición persiste durante ≥ N fotogramas.
-
-### Umbrales
-- Confianza mínima del detector: 0.5
-- Porcentaje de píxeles encendidos: ≥ 5% (θ_act = 0.05)
-- Brillo mínimo requerido: V_min = 100 (escala 0-255 en HSV)
-- Ventana de confirmación: N ≥ 8 fotogramas
-
-### Impacto
-- **Severidad:** Media
-- **Causa probable:** LED envejecido, conexión sucia, resistencia de limitación de corriente defectuosa.
-- **Acción recomendada:** Alerta al operador, programar mantenimiento preventivo, reemplazo de LED.
+- **Descripción:** Un color permanece encendido superando su tiempo máximo nominal $\tau_{\max}$.
+- **Tiempos $\tau_{\max}$ configurados (`CONFIG_PARAMETERS.yaml`):**
+  - `ROJO`: `120 s`
+  - `AMARILLO_PREP`: `5 s`
+  - `VERDE`: `90 s`
+  - `AMARILLO_DESP`: `5 s`
+- **Protección de tiempo:** el tiempo fuera de vista (`UNKNOWN`) o los reinicios de bucle de video no acumulan tiempo falso hacia `LIGHT_STUCK`, y si el cabezal está activo bajo sincronización normal se suprimen falsos `LIGHT_STUCK` transitorios.
+- **Severidad:** Alta.
 
 ---
 
-## 6. OBSTRUCTED_LIGHT (Lente obstruido)
+## 6. Condiciones adicionales configuradas (`LOW_BRIGHTNESS` y `OBSTRUCTED_LIGHT`)
 
-### Descripción
-El detector YOLO localiza el cabezal del semáforo, pero una o más lentes no son visibles o están completamente obstruidas (suciedad, vandalismo, objeto bloqueante).
-
-### Condiciones de detección
-- El detector YOLO localiza el cabezal (confianza ≥ 0.5).
-- El análisis de contraste o bordes en una ROI indica ausencia de estructura visible (lente oscuro sin transiciones cromáticas).
-- Alternativamente: la ROI tiene píxeles con valores muy bajos en todos los canales (oscuridad total).
-- Esta condición persiste durante ≥ N fotogramas.
-
-### Umbrales
-- Confianza mínima del detector: 0.5
-- Porcentaje de píxeles oscuros (V < 50 en HSV): > 80% en la ROI
-- Ventana de confirmación: N ≥ 8 fotogramas
-
-### Impacto
-- **Severidad:** Media
-- **Causa probable:** Suciedad acumulada, vandalismo, objeto bloqueante, condensación.
-- **Acción recomendada:** Alerta al operador, limpieza o reparación del lente, inspección visual.
+- `CONFIG_PARAMETERS.yaml` mantiene umbrales de referencia para `low_brightness` (`brightness_threshold: 100`) y `obstructed_light` (`dark_pixel_threshold: 0.8`), quedando el análisis activo centrado en los estados cromáticos HSV y las cinco condiciones temporales/ópticas anteriores validadas en producción.
 
 ---
 
-## Matriz de resumen
+## Matriz resumen de operación actual
 
-| Anomalía | Severidad | Causa probable | Acción |
-|---|---|---|---|
-| ALL_LIGHTS_OFF | Crítica | Falla de alimentación | Revisión de fuente |
-| MULTIPLE_LIGHTS_ON | Crítica | Falla del controlador | Revisión de circuitería |
-| INVALID_TRANSITION | Crítica | Corrupción de firmware | Revisión del controlador |
-| LIGHT_STUCK | Alta | Contacto pegado | Reinicio o reemplazo |
-| LOW_BRIGHTNESS | Media | LED envejecido | Mantenimiento preventivo |
-| OBSTRUCTED_LIGHT | Media | Suciedad/vandalismo | Limpieza o reparación |
-
----
-
-## Notas importantes
-
-1. **Ventana de confirmación (N fotogramas):** Para evitar falsas alarmas por parpadeo transitorio o ruido, toda anomalía debe persistir durante al menos N = 8 fotogramas consecutivos (≈ 0.27 segundos a 30 FPS) antes de ser registrada.
-
-2. **Confianza del detector:** Si la confianza del detector YOLO cae por debajo de 0.5, el sistema entra en estado `UNKNOWN` y no emite alertas hasta recuperar visibilidad.
-
-3. **Histéresis temporal:** Una vez confirmada una anomalía, se mantiene activa hasta que se observe un retorno a operación normal durante al menos N fotogramas.
-
-4. **Evidencia fotográfica:** Cada anomalía confirmada se acompaña de un fotograma de evidencia almacenado en la base de datos SQLite con timestamp exacto.
+| Código | Significado | Filtro anti-ruido aplicado |
+| :--- | :--- | :--- |
+| `ALL_LIGHTS_OFF` | Apagón total sostenido | Histéresis + exclusión si `is_flashing_yellow` o `ever_lit` con caída breve |
+| `AMARILLO_INTERMITENTE` | Parpadeo amarillo continuo | Ventana temporal `5.5 s` con alternancia `YELLOW`/`OFF` y `flash_min_Ratio: 0.18` |
+| `MULTIPLE_LIGHTS_ON` | Varias luces activas a la vez | Columna central 75 % + filtro `_filter_halo_bleed` (`>= 48 %` del dominante) |
+| `INVALID_TRANSITION` | Salto de secuencia vial | Confirmación `1.0 s` + resincronización tras `2.0 s` sin señal |
+| `LIGHT_STUCK` | Permanencia mayor a $\tau_{\max}$ | Reloj detenido durante pérdida de vista y reseteado en reinicios de bucle |

@@ -1,16 +1,26 @@
-# Reporte de preparación de datos
+# Reporte de preparación de datos — OptiSignal-AI
 
-## Estado observado en el repositorio
+## 1. Datasets base procesados
 
-- **LISA:** raw data local presente bajo `data/datasets/lisa/`; contiene carpetas de secuencias y anotaciones CSV bajo `Annotations/Annotations/`.
-- **Bosch (BSTLD):** raw data local presente bajo `data/datasets/bosch/`; contiene imágenes PNG bajo `rgb/test/`, anotaciones `test.yaml` y licencia.
-- **LISA procesado:** 36,775 imágenes y 232,348 cajas. Partición: 25,742 train, 7,355 val y 3,678 test. Validación: `PASS`, 0 etiquetas ausentes y 0 inválidas.
-- **Bosch procesado:** 7,147 imágenes y 13,486 cajas. Partición: 5,002 train, 1,429 val y 716 test. Validación: `PASS`, 0 etiquetas ausentes y 0 inválidas.
+- **LISA procesado (`data/processed/lisa/`):** 36,775 imágenes y 232,348 cajas (`25,742 train` / `7,355 val` / `3,678 test`). Validación: `PASS`, 0 etiquetas ausentes o inválidas.
+- **Bosch BSTLD procesado (`data/processed/bosch/`):** 7,147 imágenes y 13,486 cajas (`5,002 train` / `1,429 val` / `716 test`). Validación: `PASS`, 0 etiquetas ausentes o inválidas.
+- **Blender (`data/processed/blender/`):** partición sintética exploratoria previa al paso definitivo a video real.
 
-## Reproducir y registrar resultados
+## 2. Dataset especializado de Bogotá (`bogota_augmented`)
 
-Resultados obtenidos el 2026-09-27 usando la raw data local presente. Los derivados están ignorados por Git porque se reconstruyen desde la raw data.
+A partir de capturas reales y aumentación enfocada en condiciones locales de iluminación, clima y pórticos de Bogotá D.C., se generó **`data/processed/bogota_augmented/partitioned/`** (manifiesto verificado con `seed=42`, partición `70/20/10`):
+
+- **Total de imágenes:** `450`
+- **Entrenamiento (`train`):** `315` imágenes
+- **Validación (`val`):** `90` imágenes
+- **Prueba (`test`):** `45` imágenes
+- **Clase única (`data.yaml`):** `nc: 1`, `names: [traffic_light]`
+
+## 3. Banco de validación continua (videos y escenas de historial)
+
+- **Videos CCTV reales (`data/test_videos/`):** `cctv_s1.mp4` a `cctv_s8.mp4`, correspondientes a los 8 cruces de Bogotá configurados en [`CONFIG_PARAMETERS.yaml`](../../CONFIG_PARAMETERS.yaml) y verificados automáticamente en [`backend/tests/test_bogota_pipeline.py`](../../backend/tests/test_bogota_pipeline.py).
+- **Escenas de historial (`data/history_scenes/`):** `escena_s1.png` a `escena_s8.png`, empleadas por `GET /reportes/{id}/escena` para mostrar exactamente la intersección asociada a cada reporte.
 
 ## Resultado
 
-La arquitectura preserva los originales, evita una fusión entre proveedores y usa Google Drive únicamente como fallback cuando falta un dataset local. La conversión y validación local finalizaron correctamente para ambas fuentes.
+La evolución desde datasets genéricos (LISA/Bosch) y escenarios sintéticos hacia `bogota_augmented` + 8 videos reales permitió entrenar un detector único rápido (`models/optisignal_best.pt`) y descartar definitivamente la fase de prototipo físico.

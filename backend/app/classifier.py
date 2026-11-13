@@ -25,13 +25,62 @@ CONFIG = {
 
 
 def _lens_ratio(zone_hsv: np.ndarray, color: dict) -> float:
+    if zone_hsv.size == 0:
+        return 0.0
     lower_s, lower_v = color["saturation_min"], color["brightness_min"]
     mask = np.zeros(zone_hsv.shape[:2], dtype=np.uint8)
     for hue_min, hue_max in color["hue_ranges"]:
         lower = np.array([hue_min, lower_s, lower_v], dtype=np.uint8)
         upper = np.array([hue_max, 255, 255], dtype=np.uint8)
         mask |= cv2.inRange(zone_hsv, lower, upper)
-    return float(np.count_nonzero(mask)) / mask.size
+
+    total_pixels = float(mask.size)
+    color_hits = float(np.count_nonzero(mask))
+    base_ratio = color_hits / total_pixels
+
+    # Si existe una corona cromatica clara del color del lente, incluir el nucleo LED
+    # saturado en blanco (bloom nocturno / sobreexposicion en s1 y s5) dentro del mismo tercio
+    if base_ratio >= 0.035:
+        white_core = cv2.inRange(
+            zone_hsv,
+            np.array([0, 0, 238], dtype=np.uint8),
+            np.array([179, 32, 255], dtype=np.uint8),
+        )
+        combined = cv2.bitwise_or(mask, white_core)
+        color_hits = float(np.count_nonzero(combined))
+
+    # Descartar pixeles de cielo azul/celeste y nubes blancas/grises brillantes alrededor de la carcasa
+    blue_sky = cv2.inRange(
+        zone_hsv,
+        np.array([92, 12, 140], dtype=np.uint8),
+        np.array([142, 255, 255], dtype=np.uint8),
+    )
+    overcast_sky = cv2.inRange(
+        zone_hsv,
+        np.array([0, 0, 160], dtype=np.uint8),
+        np.array([179, 23, 237], dtype=np.uint8),
+    )
+    sky_mask = cv2.bitwise_or(blue_sky, overcast_sky)
+    sky_pixels = float(np.count_nonzero(sky_mask))
+    effective_area = max(total_pixels * 0.25, total_pixels - sky_pixels)
+    return min(1.0, color_hits / effective_area)
+
+
+def _filter_halo_bleed(active: tuple[str, ...], ratios: dict[str, float]) -> tuple[str, ...]:
+    """Distingue encendido simultaneo real (MULTIPLE) del sangrado optico (bloom) hacia un lente vecino."""
+    if len(active) <= 1:
+        return active
+    primary_lens = max(active, key=lambda l: ratios[l])
+    primary_ratio = ratios[primary_lens]
+    if primary_ratio <= 0.0:
+        return active
+
+    # Mantener solo los lentes cuya activacion sea comparable al dominante (>= 48%)
+    filtered = tuple(
+        lens for lens in active
+        if lens == primary_lens or ratios[lens] >= 0.48 * primary_ratio
+    )
+    return filtered if filtered else (primary_lens,)
 
 
 def classify_light(
@@ -67,7 +116,8 @@ def classify_light(
         )
         for i, lens in enumerate(LENSES)
     }
-    active = tuple(lens for lens in LENSES if ratios[lens] >= config["activation_threshold"])
+    raw_active = tuple(lens for lens in LENSES if ratios[lens] >= config["activation_threshold"])
+    active = _filter_halo_bleed(raw_active, ratios)
 
     if not active:
         state = "OFF"

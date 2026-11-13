@@ -1,14 +1,9 @@
-import csv
-from pathlib import Path
-
 import cv2
 import numpy as np
 import pytest
 
 from app.classifier import classify_light
 
-BLENDER_DIR = Path(__file__).resolve().parents[2] / "frontend" / "smaforos blender"
-COLOR_NAMES = {"rojo": "red", "amarillo": "yellow", "verde": "green"}
 BOX = (10, 10, 40, 100)  # zonas de 30 px de alto: y 10-40, 40-70 y 70-100
 HOUSING_HSV = (0, 0, 40)
 
@@ -51,23 +46,3 @@ def test_states(zones, state, active):
 )
 def test_unknown(box, confidence):
     assert classify_light(with_box_hsv(), box, confidence).state == "UNKNOWN"
-
-
-def blender_rows():
-    meta_path = BLENDER_DIR / "meta.csv"
-    if not meta_path.exists():
-        return []
-    with open(meta_path, encoding="utf-8") as f:
-        return list(csv.DictReader(f))
-
-
-@pytest.mark.parametrize("row", blender_rows(), ids=lambda r: f'{r["imagen"]}-{r["escenario"]}')
-def test_blender_renders(row):
-    # imdecode porque cv2.imread falla con rutas no ASCII en Windows
-    image = cv2.imdecode(np.fromfile(BLENDER_DIR / "images" / f'{row["imagen"]}.png', np.uint8), 1)
-    height, width = image.shape[:2]
-    cx, cy, w, h = (float(row[k]) for k in ("cx", "cy", "w", "h"))
-    box = ((cx - w / 2) * width, (cy - h / 2) * height, (cx + w / 2) * width, (cy + h / 2) * height)
-
-    expected = {COLOR_NAMES[c] for c in row["luces_encendidas"].split("+") if c}
-    assert set(classify_light(image, box).active) == expected

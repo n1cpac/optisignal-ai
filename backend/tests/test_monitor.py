@@ -123,6 +123,7 @@ def alerts(monkeypatch):
     sent, seen = [], set()
     monkeypatch.setattr(database, "insert_alerta_sistema", lambda **kw: sent.append(kw["tipo_anomalia"]) or len(sent))
     monkeypatch.setattr(database, "alerta_vista", lambda alerta_id: alerta_id in seen)
+    monkeypatch.setattr(database, "semaforo_atendido_hoy", lambda semaforo_id: False)
     return sent, seen
 
 

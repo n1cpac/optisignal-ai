@@ -1,363 +1,64 @@
-# Fase 4 — Detección con YOLO
+# Fase 4 — Detección con YOLO, Tracking y Compensación de Movimiento
 
-## Objetivo
+## 1. Evolución de la metodología de entrenamiento
 
-Implementar un flujo reproducible de entrenamiento y evaluación del detector YOLO para localizar semáforos en imágenes y video. El modelo se entrena de forma independiente para LISA y Bosch, evaluando métricas de precisión (Precision, Recall, mAP@50) y exportando pesos optimizados.
+### Iteración inicial (modelos separados + ensamble)
+En la primera etapa se entrenaron modelos independientes sobre **LISA** (`lisa_best.pt`), **Bosch** (`bosch_best.pt`) y renders sintéticos (`blender_best.pt`) a resolución `640x640`, combinados en un ensamble de 3 modelos dentro del backend.
 
----
-
-## Hardware disponible
-
-**Equipo local:**
-- CPU: AMD Ryzen 5 5500
-- RAM: 16 GB DDR4
-- GPU: NVIDIA GeForce RTX 4060 Ti (8 GB VRAM)
-
-**Entornos soportados:**
-- Local (Windows/Linux/macOS) con GPU CUDA o CPU
-- Google Colab (GPU Tesla T4)
+Al probar este enfoque sobre videos reales de Bogotá D.C. aparecieron tres cuellos de botella:
+1. **Latencia severa en CPU (~2 FPS):** inferir 3 modelos en paralelo bloqueaba el streaming de las 8 cámaras.
+2. **Pérdida de semáforos pequeños y falsos positivos:** la entrada de `640px` dejaba sin detectar cabezales lejanos (`s4`) y confundía peatones o postes cercanos (`s6`).
+3. **Inestabilidad temporal sin tracking:** detectar cuadro a cuadro causaba saltos de tamaño/posición, desapariciones momentáneas (`s3`) y desvío de cajas cuando la cámara se movía (`s5`, `s7`).
 
 ---
 
-## Estructura de datos esperada
+## 2. Solución definitiva: Modelo unificado `optisignal_best.pt` (`1280px`)
 
-La Fase 3 genera particiones independientes para cada dataset:
+Se consolidó un único modelo liviano especializado en el dominio local de Bogotá usando **YOLOv8n** con transferencia de aprendizaje sobre el dataset **`data/processed/bogota_augmented/partitioned/`** (450 imágenes: 315 `train` / 90 `val` / 45 `test`, `nc: 1`, `traffic_light`).
 
-```text
-data/processed/
-├── lisa/
-│   └── partitioned/
-│       ├── images/
-│       │   ├── train/     (25,742 imágenes)
-│       │   ├── val/       (7,355 imágenes)
-│       │   └── test/      (3,678 imágenes)
-│       ├── labels/
-│       │   ├── train/
-│       │   ├── val/
-│       │   └── test/
-│       ├── data.yaml
-│       └── partition_manifest.json
-└── bosch/
-    └── partitioned/
-        ├── images/
-        │   ├── train/     (5,002 imágenes)
-        │   ├── val/       (1,429 imágenes)
-        │   └── test/      (716 imágenes)
-        ├── labels/
-        │   ├── train/
-        │   ├── val/
-        │   └── test/
-        ├── data.yaml
-        └── partition_manifest.json
-```
+### Hardware y configuración de entrenamiento
+- **Equipo de entrenamiento:** CPU AMD Ryzen 5 5500 · 16 GB RAM · GPU NVIDIA GeForce RTX 4060 Ti (8 GB VRAM).
+- **Estrategia:** YOLOv8n con *transfer learning* congelando las primeras 10 capas (`freeze=10`), 20 épocas (`~1.8 min` en GPU).
+- **Peso exportado en producción:** [`models/optisignal_best.pt`](../../models/optisignal_best.pt).
 
-**Nota:** Las anotaciones corresponden a cajas de luz/semáforo según la fuente original. No se inventan cajas de cabezal agrupando lentes.
+### Métricas obtenidas en el modelo maestro (`optisignal_best.pt`)
+
+| Métrica | Valor | Descripción |
+| :--- | :---: | :--- |
+| **Precision** | **99.97 %** | Mínimos falsos positivos sobre postes o mobiliario urbano |
+| **Recall** | **100.0 %** | Cobertura total de semáforos visibles, incluidos apagados |
+| **mAP@50** | **99.50 %** | Precisión media con IoU 0.50 |
+| **mAP@50-95** | **98.62 %** | Precisión media estricta multiescala |
+| **Latencia (GPU)** | **2.4 ms/imagen** | Permite operar el pipeline completo en tiempo real (15 FPS configurados en CPU/video) |
 
 ---
 
-## Notebook Jupyter: `phase_4_yolo_training.ipynb`
+## 3. Inferencia, filtrado geométrico y tracking en producción
 
-El notebook implementa el flujo completo en 9 secciones:
+Para resolver por completo los problemas detectados en video continuo, el detector `optisignal_best.pt` se integró en un pipeline de 4 capas dentro del backend:
 
-### 1. Instalación de dependencias
-- Detecta entorno (local vs Colab)
-- Instala Ultralytics YOLO, OpenCV y dependencias de visión.
-- En local, PyTorch CUDA se instala por separado desde el mismo Python seleccionado como kernel; el notebook no lo reemplaza por una build CPU.
+1. **Inferencia unificada de alta resolución (`backend/app/detector.py`)**
+   - `ensemble: false`, `model_path: models/optisignal_best.pt`, `input_size: 1280`.
+   - Doble umbral: `confidence_threshold: 0.25` (detecciones altas) y `low_confidence_threshold: 0.12` (para recuperación en ByteTrack), con NMS `iou_threshold: 0.45`.
+   - **Filtrado geométrico (`Detector._is_valid_box`)**: exige orientación vertical (`1.35 <= h/w <= 4.35`), tamaño mínimo (`w >= 14`, `h >= 24`) y descarta barra OSD superior, bordes de postes y peatones grandes en primer plano (`s6`, `s8`).
+   - **Completado de pórticos y NMS estricto (`_nms_and_complete`)**: elimina cajas duplicadas con solapamiento vertical y reconstruye cabezales faltantes en brazos cantiléver cuando YOLO cae momentáneamente de confianza (`s3`, `s4`, `s5`).
 
-### 2. Detección de hardware
-- Identifica GPU NVIDIA y CUDA y ejecuta una operación breve de prueba.
-- Detiene el flujo si CUDA no está disponible; no continúa silenciosamente por CPU.
-- Muestra información del sistema y VRAM.
+2. **Compensación global de movimiento de cámara (`backend/app/motion.py`)**
+   - Extrae esquinas en escala reducida (`SMALL_WIDTH = 640`), calcula flujo óptico piramidal bidireccional (**Lucas-Kanade**, `calcOpticalFlowPyrLK`) y estima una transformación de similitud 2D robusta con **RANSAC** (`cv2.estimateAffinePartial2D`).
+   - Desplaza y reescala las cajas existentes al movimiento de la cámara antes de asociar detecciones, evitando que vehículos o peatones arrastren las cajas y eliminando el retraso visual durante paneos (`s5`, `s7`).
 
-### 3. Configuración de parámetros
+3. **Tracking multi-objeto ByteTrack + Filtro de Kalman 6D (`backend/app/tracker.py`)**
+   - Mantiene estado `[cx, cy, w, h, vx, vy]` por cabezal mediante `KalmanBoxFilter`.
+   - Limita cambios bruscos de tamaño (`max_size_change_ratio: 0.18`) y ancla el centro ante expansiones laterales anómalas para que un peatón junto al semáforo no capture la caja (`s6`).
+   - Aplica **re-anclaje por correlación cruzada normalizada (NCC)** ante caídas breves de confianza sin crear cajas fantasmas en cortes de escena (`s3`).
+   - Numera de manera determinista los cabezales visibles de izquierda a derecha (`#1, #2, #3...`).
 
-**Parámetros editables (sin modificar código):**
-
-```python
-YOLO_MODEL = 'yolov8n'      # nano para inferencia rápida
-EPOCHS = 5                  # Cambiar a 50-100 para entrenamiento real
-BATCH_SIZE = 8              # Punto de partida para RTX 4060 Ti de 8 GB
-IMG_SIZE = 640              # Tamaño de imagen
-PATIENCE = 10               # Early stopping
-SEED = 42                   # Reproducibilidad
-DATASETS = ['lisa', 'bosch'] # Entrenar ambos independientemente
-```
-
-**Rutas automáticas:**
-- Local: Detecta raíz del proyecto desde ubicación del notebook
-- Colab: Monta Google Drive en `/content/drive/MyDrive/optisignal-ai`
-
-### 4. Validación de estructura de datos
-- Verifica existencia de directorios train/val/test
-- Cuenta imágenes y etiquetas
-- Lee manifiestos de partición
-
-### 5. Entrenamiento del modelo
-- Carga modelo preentrenado (YOLOv8n)
-- Entrena independientemente para LISA y Bosch
-- Guarda pesos en `models/{dataset}_best.pt`
-- Registra resultados en `results/phase_4/{dataset}/train/`
-
-### 6. Evaluación del modelo
-- Evalúa en conjunto de prueba
-- Extrae métricas: Precision, Recall, mAP@50, mAP@50-95
-- Guarda resultados en JSON
-
-### 7. Visualización de resultados
-- Gráficos de pérdida (train/val)
-- Gráficos de mAP@50 por época
-- Guarda en `results/phase_4/training_metrics.png`
-
-### 8. Prueba de inferencia
-- Ejecuta predicciones en imágenes de prueba
-- Visualiza detecciones con bounding boxes
-- Guarda muestras en `results/phase_4/{dataset}_inference_samples.png`
-
-### 9. Resumen y próximos pasos
-- Lista archivos generados
-- Indica directorio de resultados
-- Sugiere próximas fases
+4. **Ventana temporal y manejo de bucles (`tracker.py`, `monitor.py`)**
+   - Evalúa los estados sobre una ventana deslizante de `5.5 s` (`temporal_window_seconds`) para distinguir `AMARILLO_INTERMITENTE` de `ALL_LIGHTS_OFF`.
+   - Al reiniciar el bucle de un video (`on_video_loop`), preserva estados estables (`ever_lit`) e impide falsos `ALL_LIGHTS_OFF` o `LIGHT_STUCK` al cruzar el límite del video (`s2`, `s6`, `s8`).
 
 ---
 
-## Ejecución local
+## 4. Verificación
 
-### Requisitos previos
-
-1. **Python 3.10+** instalado
-2. **Datasets procesados** en `data/processed/lisa/` y `data/processed/bosch/`
-3. **Jupyter Notebook** instalado:
-   ```bash
-   pip install jupyter
-   ```
-
-### Pasos
-
-1. **Navegar al directorio del proyecto:**
-   ```bash
-   cd optisignal-ai
-   ```
-
-2. **Identificar el Python del kernel** ejecutando `import sys; print(sys.executable)` en una celda. Usa esa ruta en los comandos de instalación.
-
-3. **Instalar PyTorch con CUDA desde la terminal de VS Code** (PowerShell; reemplaza la ruta por `sys.executable`):
-   ```powershell
-   & "C:\ruta\al\python.exe" -m pip install --force-reinstall torch==2.14.0 torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cu130
-   ```
-   El entorno del kernel usa PyTorch 2.14.0. Para esa versión, PyTorch publica wheels CUDA 13.0 y TorchVision 0.29.0 compatibles con Python 3.12 en Windows; el driver instalado reporta CUDA 13.1. Los wheels precompilados no requieren instalar aparte el CUDA Toolkit. Si CUDA sigue sin inicializar, verifica el driver y el comando recomendado en [el selector oficial de PyTorch](https://pytorch.org/get-started/locally/).
-
-4. **Instalar las dependencias de visión** en el mismo entorno o ejecutar la celda 1 del notebook:
-   ```powershell
-   & "C:\ruta\al\python.exe" -m pip install "ultralytics>=8.0.0" "opencv-python>=4.8.0" "numpy>=1.24.0" "pandas>=2.0.0" "matplotlib>=3.7.0" "Pillow>=10.0.0" "psutil>=5.9.0"
-   ```
-
-5. **Reiniciar el kernel** y ejecutar primero la celda de detección. Debe mostrar `CUDA disponible: True` y `NVIDIA GeForce RTX 4060 Ti` antes de continuar.
-
-6. **Iniciar Jupyter:**
-   ```bash
-   jupyter notebook
-   ```
-
-7. **Abrir el notebook:**
-   - Navegar a `notebooks/phase_4_yolo_training.ipynb`
-   - Hacer clic para abrir
-
-8. **Ejecutar celdas en orden.** Si CUDA no está disponible, la celda de hardware detiene el notebook antes del entrenamiento. Comprueba que VS Code esté usando el Python donde instalaste PyTorch CUDA.
-
-### Configuración recomendada para hardware local
-
-**Con GPU RTX 4060 Ti (8 GB VRAM):**
-```python
-YOLO_MODEL = 'yolov8n'  # nano
-EPOCHS = 50             # Entrenamiento completo
-BATCH_SIZE = 8          # Recomendado para la variante de 8 GB
-IMG_SIZE = 640
-```
-
-**Si hay problemas de memoria:**
-```python
-BATCH_SIZE = 4          # Reducir batch
-IMG_SIZE = 416          # Reducir tamaño de imagen
-```
-
----
-
-## Ejecución en Google Colab
-
-### Pasos
-
-1. **Subir notebook a Google Drive:**
-   - Crear carpeta `optisignal-ai` en Drive
-   - Subir `notebooks/phase_4_yolo_training.ipynb`
-
-2. **Abrir en Colab:**
-   - Clic derecho en el notebook → "Open with" → "Google Colaboratory"
-
-3. **Ejecutar celdas:**
-   - El notebook detecta automáticamente Colab
-   - Monta Google Drive en la celda 3
-   - Resto igual que local
-
-### Ventajas en Colab
-- GPU Tesla T4 gratuita (12 GB VRAM)
-- Más rápido que CPU local
-- No requiere instalación local
-
-### Limitaciones
-- Sesión se cierra después de inactividad
-- Archivos se pierden si no se guardan en Drive
-- Velocidad variable según carga del servidor
-
----
-
-## Métricas esperadas
-
-### LISA (36,775 imágenes, 232,348 cajas)
-
-**Configuración:**
-- Épocas: 50
-- Batch size: 16
-- Tamaño imagen: 640x640
-
-**Métricas esperadas (aproximadas):**
-- Precision: 0.85-0.92
-- Recall: 0.80-0.88
-- mAP@50: 0.88-0.95
-- Tiempo de inferencia: 15-25 ms/imagen (GPU)
-
-### Bosch (7,147 imágenes, 13,486 cajas)
-
-**Configuración:**
-- Épocas: 50
-- Batch size: 16
-- Tamaño imagen: 640x640
-
-**Métricas esperadas (aproximadas):**
-- Precision: 0.80-0.90
-- Recall: 0.75-0.85
-- mAP@50: 0.82-0.92
-- Tiempo de inferencia: 15-25 ms/imagen (GPU)
-
-**Nota:** Las métricas reales dependen de:
-- Calidad y variabilidad de las anotaciones
-- Condiciones de iluminación en los datos
-- Tamaño y resolución de las imágenes
-- Hiperparámetros de entrenamiento
-
----
-
-## Archivos generados
-
-### Pesos entrenados
-```text
-models/
-├── lisa_best.pt         # Pesos optimizados para LISA
-└── bosch_best.pt        # Pesos optimizados para Bosch
-```
-
-### Resultados y métricas
-```text
-results/phase_4/
-├── lisa/
-│   ├── train/
-│   │   ├── weights/
-│   │   │   ├── best.pt
-│   │   │   └── last.pt
-│   │   ├── results.csv
-│   │   └── ...
-│   └── lisa_evaluation.json
-├── bosch/
-│   ├── train/
-│   │   ├── weights/
-│   │   │   ├── best.pt
-│   │   │   └── last.pt
-│   │   ├── results.csv
-│   │   └── ...
-│   └── bosch_evaluation.json
-├── training_metrics.png
-├── lisa_inference_samples.png
-└── bosch_inference_samples.png
-```
-
-### Archivos ignorados por Git
-Los directorios `models/` y `results/` están en `.gitignore` porque contienen artefactos pesados (pesos, gráficos, logs).
-
----
-
-## Limitaciones y consideraciones
-
-### Anotaciones
-- Las cajas de LISA y Bosch representan instancias de luz/semáforo según la fuente original
-- No se agrupan lentes para crear cajas de cabezal completo
-- La división geométrica en tres lentes se realiza en Fase 5 (clasificación HSV)
-
-### Reproducibilidad
-- Seed fijo (42) asegura particiones reproducibles
-- Resultados pueden variar ligeramente entre GPU/CPU por precisión numérica
-- Versiones de PyTorch/CUDA pueden afectar resultados
-
-### Rendimiento
-- YOLOv8n es ligero pero menos preciso que versiones mayores
-- Para mayor precisión, usar `yolov8s` o `yolov8m` (más lento)
-- Tiempo de entrenamiento: 30-60 min (GPU), 2-4 horas (CPU)
-
-### Datos de prueba
-- El conjunto de prueba (10%) se reserva para evaluación final
-- No se usa durante entrenamiento ni validación
-- Proporciona estimación imparcial del rendimiento
-
----
-
-## Próximos pasos
-
-1. **Fase 5:** Clasificación de colores (HSV)
-   - Usar ROI del semáforo detectado
-   - Dividir en tres zonas (rojo, amarillo, verde)
-   - Clasificar estado de cada lente
-
-2. **Fase 6:** Máquina de estados finitos (FSM)
-   - Validar secuencia según normativa colombiana
-   - Detectar anomalías temporales
-   - Generar alertas
-
-3. **Fase 7:** Backend FastAPI
-   - Integrar detector YOLO
-   - Conectar con clasificador HSV
-   - Exponer API REST
-
----
-
-## Troubleshooting
-
-### Error: "CUDA out of memory"
-- Reducir `BATCH_SIZE` (8 → 4 → 2)
-- Reducir `IMG_SIZE` (640 → 416 → 320)
-- Usar CPU en lugar de GPU
-
-### Error: "data.yaml not found"
-- Verificar que Fase 3 completó correctamente
-- Ejecutar `python data/scripts/prepare_datasets.py`
-
-### Error: "No module named 'ultralytics'"
-- Ejecutar celda 1 (instalación de dependencias)
-- O instalar manualmente: `pip install ultralytics`
-
-### Entrenamiento muy lento
-- Verificar que GPU está siendo usada (celda 3)
-- Reducir `EPOCHS` para pruebas rápidas
-- Usar `yolov8n` en lugar de versiones mayores
-
----
-
-## Referencias
-
-- [Ultralytics YOLO Documentation](https://docs.ultralytics.com/)
-- [LISA Traffic Light Dataset](https://cvrr.ucsd.edu/)
-- [Bosch Small Traffic Lights Dataset](https://hci.iwr.uni-heidelberg.de/node/6132)
-- [PyTorch CUDA Documentation](https://pytorch.org/get-started/locally/)
-
----
-
-**Fecha de creación:** 2026-09-28
-**Responsable:** Integrante 1 (Visión por Computador)
-**Estado:** 🔄 Implementado, listo para ejecución
+Toda la integración de `optisignal_best.pt` + tracking + clasificación está cubierta por [`backend/tests/test_bogota_pipeline.py`](../../backend/tests/test_bogota_pipeline.py) sobre los 8 videos reales de Bogotá (`cctv_s1.mp4` a `cctv_s8.mp4`), ejecutándose dentro de la suite completa de **83 pruebas**.

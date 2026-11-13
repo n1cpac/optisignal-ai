@@ -16,7 +16,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "test.db")
     monkeypatch.setattr(main, "Detector", StubDetector)
     # Las pruebas no deben abrir la camara real (OBS) aunque la configuracion la use
-    monkeypatch.setitem(main.SEMAFOROS, "s1", {**main.SEMAFOROS["s1"], "source": "data/test_videos/test1.mp4"})
+    monkeypatch.setitem(main.SEMAFOROS, "s1", {**main.SEMAFOROS["s1"], "source": "data/test_videos/cctv_s1.mp4"})
     with TestClient(main.app) as test_client:
         yield test_client
 
@@ -39,8 +39,8 @@ def test_semaforos_follow_the_panel_contract(client):
 def test_only_s1_is_a_camera_and_the_rest_get_distinct_renders():
     sources = [s["source"] for s in main.SEMAFOROS.values()]
     assert sources[0] == SETTINGS["semaforos"][0]["source"]
-    assert all(s.endswith(".png") and "renders_escenarios" in s for s in sources[1:])
-    assert len(set(sources[1:])) == len(sources) - 1  # sin renders repetidos
+    assert all(s.endswith((".png", ".mp4")) for s in sources)
+    assert len(set(sources)) == len(sources)  # sin fuentes repetidas
 
 
 def make_renders(folder, *names):
@@ -135,3 +135,21 @@ def test_history_reports_get_a_fixed_random_scene(client):
     assert client.get("/reportes/7/escena").content == primera.content  # siempre la misma para el mismo reporte
     escenas = {client.get(f"/reportes/{i}/escena").content for i in range(1, 30)}
     assert len(escenas) > 1  # distintos reportes reciben escenas distintas
+
+
+def test_report_scene_matches_its_traffic_light_and_reset_clears_db(client):
+    from app.config import ROOT, SETTINGS
+
+    res_post = client.post("/reportes/envio", json=envio(semaforoId="s5"))
+    assert res_post.status_code == 200
+    rep_id = res_post.json()["id"]
+
+    escena_resp = client.get(f"/reportes/{rep_id}/escena")
+    assert escena_resp.status_code == 200
+    expected = (ROOT / SETTINGS["history_scenes"] / "escena_s5.png").read_bytes()
+    assert escena_resp.content == expected
+
+    reset_resp = client.post("/reportes/reset")
+    assert reset_resp.status_code == 200
+    assert reset_resp.json() == {"ok": True}
+    assert client.get("/reportes", params={"vista": "historial"}).json()["total"] == 0

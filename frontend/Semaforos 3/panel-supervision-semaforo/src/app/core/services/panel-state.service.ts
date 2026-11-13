@@ -130,5 +130,43 @@ export class PanelStateService {
   abrirReporteNuevo(id: string): void {
     this.abrirAlLlegar = id;
     this.paginaHistorial.set(1);
+    this.refrescarReportes();
+  }
+
+  /** Refresca de inmediato las colas de alertas actuales y el historial. */
+  refrescarReportes(): void {
+    this.api
+      .getReportes('actuales', this.paginaActuales())
+      .subscribe({ next: (res) => this.actuales.set(res), error: () => undefined });
+    this.api
+      .getReportes('historial', this.paginaHistorial())
+      .subscribe({ next: (res) => this.historial.set(res), error: () => undefined });
+  }
+
+  /** Tras enviar un reporte desde la vista en vivo, retira la alerta de Actuales y sincroniza colas. */
+  reporteEnviadoEnVivo(semaforoId: string): void {
+    this.marcarVista(semaforoId);
+    this.actuales.update((actual) => {
+      const filtrados = actual.items.filter((r) => r.semaforoId !== semaforoId);
+      if (filtrados.length === actual.items.length) return actual;
+      return { ...actual, items: filtrados, total: Math.max(0, actual.total - 1) };
+    });
+    this.refrescarReportes();
+  }
+
+  /** Reinicia la base de datos de reportes y vuelve a cargar las alertas activas de los semaforos. */
+  resetearDemo(): void {
+    this.api.resetearReportes().subscribe({
+      next: () => {
+        this.ultimoIdVisto = null;
+        this.alertasNuevas.set(new Set());
+        this.hayAlertaNueva.set(false);
+        this.reporteHistorial.set(null);
+        this.paginaActuales.set(1);
+        this.paginaHistorial.set(1);
+        this.refrescarReportes();
+      },
+      error: () => undefined
+    });
   }
 }

@@ -1,4 +1,5 @@
 # Camera capture module
+from collections import deque
 import logging
 import threading
 import time
@@ -24,6 +25,9 @@ class CameraFeed:
         self.timeout_seconds = timeout_seconds
         self._frame: Optional[np.ndarray] = None
         self._frame_time = 0.0
+        self._frame_seq = 0
+        self._lock = threading.Lock()
+        self._recent_frames: deque[tuple[float, int, np.ndarray]] = deque(maxlen=18)
         self.is_image = isinstance(source, str) and Path(source).suffix.lower() in IMAGE_SUFFIXES
         self.restarts = 0  # veces que un video volvio a empezar
         self._stop = threading.Event()
@@ -38,9 +42,29 @@ class CameraFeed:
 
     def read(self) -> Optional[np.ndarray]:
         """Ultimo frame, o None si no hay senal: una camara trabada no debe verse como activa."""
-        if not self.is_image and time.monotonic() - self._frame_time > self.timeout_seconds:
-            return None
-        return self._frame
+        return self.read_with_seq()[0]
+
+    def read_with_seq(self) -> tuple[Optional[np.ndarray], int]:
+        """Ultimo frame y su contador de secuencia, o (None, seq) si expiro la senal."""
+        frame, _, seq = self.read_stamped()
+        return frame, seq
+
+    def read_stamped(self) -> tuple[Optional[np.ndarray], float, int]:
+        """Devuelve (frame, frame_time, frame_seq) o (None, ftime, seq) si expiro la senal."""
+        now = time.monotonic()
+        with self._lock:
+            frame, ftime, seq = self._frame, self._frame_time, self._frame_seq
+        if not self.is_image and now - ftime > self.timeout_seconds:
+            return None, ftime, seq
+        return frame, ftime, seq
+
+    def pop_recent_frames(self, after_seq: int, max_seq: Optional[int] = None) -> list[tuple[float, int, np.ndarray]]:
+        """Extrae en orden cronologico los cuadros muestreados con seq > after_seq (y <= max_seq si se indica)."""
+        with self._lock:
+            return [
+                item for item in self._recent_frames
+                if item[1] > after_seq and (max_seq is None or item[1] <= max_seq)
+            ]
 
     def _run(self) -> None:
         if self.is_image:
@@ -56,7 +80,11 @@ class CameraFeed:
     def _load_image(self) -> None:
         try:
             # imdecode porque cv2.imread falla con rutas no ASCII en Windows
-            self._frame = cv2.imdecode(np.fromfile(self.source, np.uint8), cv2.IMREAD_COLOR)
+            frame = cv2.imdecode(np.fromfile(self.source, np.uint8), cv2.IMREAD_COLOR)
+            with self._lock:
+                self._frame = frame
+                self._frame_time = time.monotonic()
+                self._frame_seq += 1
         except OSError:
             logger.error("No se pudo leer la imagen %s", self.source)
 
@@ -70,15 +98,29 @@ class CameraFeed:
             capture.set(cv2.CAP_PROP_FRAME_HEIGHT, SETTINGS["camera"]["resolution_height"])
         frames_read = 0
         try:
-            fps = capture.get(cv2.CAP_PROP_FPS) if is_file else 0
+            raw_fps = capture.get(cv2.CAP_PROP_FPS) if is_file else 0.0
+            target_fps = float(SETTINGS["camera"].get("fps", 15))
+            fps = min(raw_fps, target_fps) if raw_fps > 0 else target_fps
+            frame_interval = (1.0 / fps) if (is_file and fps > 0) else 0.0
             while not self._stop.is_set():
+                frame_start = time.monotonic()
                 ok, frame = capture.read()
                 if not ok:
                     break
-                self._frame, self._frame_time = frame, time.monotonic()
-                frames_read += 1
-                if fps > 0:
-                    self._stop.wait(1 / fps)  # un archivo se lee mas rapido que el tiempo real
+                now_frame = time.monotonic()
+                with self._lock:
+                    if frames_read == 0:
+                        self._recent_frames.clear()
+                    self._frame = frame
+                    self._frame_time = now_frame
+                    self._frame_seq += 1
+                    frames_read += 1
+                    if frames_read % 3 == 1:
+                        self._recent_frames.append((now_frame, self._frame_seq, frame))
+                if frame_interval > 0.0:
+                    remaining = frame_interval - (time.monotonic() - frame_start)
+                    if remaining > 0.0:
+                        self._stop.wait(remaining)  # mantiene la velocidad real descontando el tiempo de decodificacion
         finally:
             capture.release()
         return is_file and frames_read > 0

@@ -1,38 +1,50 @@
 detector:
-  ensemble: true
+  ensemble: false
+  model_path: models/optisignal_best.pt  # Modelo unificado entrenado con fotos reales de Bogotá
   model_paths:
-    - models/blender_best.pt  # 3D renders del frontend + Bogotá local (87.5% de acierto en front)
-    - models/lisa_best.pt     # Semáforos reales diversos (alta sensibilidad a video real)
-    - models/bosch_best.pt    # Semáforos urbanos alta resolución
-  model_path: models/blender_best.pt  # Fallback si ensemble está desactivado
-  inference_interval_seconds: 0.25
+    - models/optisignal_best.pt
+  inference_interval_seconds: 0.12
   confidence_threshold: 0.25
+  low_confidence_threshold: 0.12
   iou_threshold: 0.45
   device: cpu
   inference_timeout_ms: 35
-  input_size: 640
+  input_size: 1280
+  tracker:
+    type: bytetrack
+    high_threshold: 0.25
+    low_threshold: 0.12
+    match_iou_threshold: 0.20
+    max_center_distance_ratio: 1.35
+    max_age_seconds: 5.0
+    min_hits: 2
+    kalman_process_noise: 0.03
+    kalman_measurement_noise: 0.15
+    max_size_change_ratio: 0.18
+    temporal_window_seconds: 5.5
+    flash_min_Ratio: 0.18
 color_classification:
   red:
     hue_ranges:
     - - 0
-      - 9
-    - - 170
+      - 10
+    - - 160
       - 179
-    saturation_min: 15
-    brightness_min: 120
+    saturation_min: 36
+    brightness_min: 102
   yellow:
     hue_ranges:
-    - - 17
+    - - 8
       - 40
-    saturation_min: 15
-    brightness_min: 120
+    saturation_min: 20
+    brightness_min: 105
   green:
     hue_ranges:
-    - - 50
-      - 90
-    saturation_min: 15
-    brightness_min: 120
-  activation_threshold: 0.05
+    - - 45
+      - 95
+    saturation_min: 20
+    brightness_min: 102
+  activation_threshold: 0.08
   min_roi_height: 12
 traffic_light_timing:
   red_min: 30
@@ -79,51 +91,78 @@ camera:
   source: 0
   resolution_width: 1280
   resolution_height: 720
-  fps: 30
+  fps: 15
   frame_buffer_size: 5
   timeout_seconds: 5
 semaforos:
 # lat/lng are optional: without them the backend places the light at the crossing named in
 # 'nombre' (e.g. 'AC 72 con KR 13'), using the road names in road_network. Give them by hand
-# only for odd cases, such as a roundabout.
-# s1 is the only camera. A folder source takes a random render on every backend start;
-# its electrical state and fault come from the file name (scenario_NN_time_lights.png).
-# Names use the Malla Vial numbers; the common name of each avenue is in the comment.
+# only for odd cases or refined intersection coordinates.
+# s1..s8 load the eight Bogotá real CCTV test clips (data/test_videos/cctv_s1.mp4 .. cctv_s8.mp4)
+# looped at camera.fps (15 FPS). Names use Malla Vial nomenclature.
 - id: s1
   nombre: AK 80 con AC 55 S  # Av. Agoberto Mejia con Av. Primero de Mayo
+  lat: 4.61444
+  lng: -74.17479
   electrico: rojo
-  falla: false
-  source: data/test_videos/test1.mp4
+  falla: true
+  source: data/test_videos/cctv_s1.mp4
 - id: s2
   nombre: CL 17 con KR 106  # Av. Centenario con KR 106 (the AC 13 does not reach the KR 106 in the data)
-  source: frontend/smaforos blender/renders_escenarios
+  lat: 4.67684
+  lng: -74.14916
+  electrico: verde
+  falla: true
+  source: data/test_videos/cctv_s2.mp4
 - id: s3
   nombre: KR 92 con CL 169B  # Suba
-  source: frontend/smaforos blender/renders_escenarios
+  lat: 4.75873
+  lng: -74.07746
+  electrico: verde
+  falla: false
+  source: data/test_videos/cctv_s3.mp4
 - id: s4
   nombre: AC 26 con KR 19  # Av. El Dorado con KR 19
-  source: frontend/smaforos blender/renders_escenarios
+  lat: 4.61847
+  lng: -74.07494
+  electrico: rojo
+  falla: false
+  source: data/test_videos/cctv_s4.mp4
 - id: s5
   nombre: KR 14 con CL 44 S  # Av. Caracas con CL 44 Sur (not confirmed that this KR 14 is the Caracas)
   # By hand: in the data these roads come within 34 m without sharing a vertex
   lat: 4.57475
   lng: -74.12355
-  source: frontend/smaforos blender/renders_escenarios
+  electrico: rojo
+  falla: true
+  source: data/test_videos/cctv_s5.mp4
 - id: s6
   nombre: AK 7 con CL 84
-  source: frontend/smaforos blender/renders_escenarios
+  lat: 4.66406
+  lng: -74.04778
+  electrico: verde
+  falla: false
+  source: data/test_videos/cctv_s6.mp4
 - id: s7
   nombre: AK 104 con AC 145  # Av. Ciudad de Cali con CL 145 (in Suba the Av. Cali is the AK 104)
-  source: frontend/smaforos blender/renders_escenarios
+  lat: 4.74648
+  lng: -74.09617
+  electrico: rojo
+  falla: false
+  source: data/test_videos/cctv_s7.mp4
 - id: s8
   # "Av. Cali con 101": no road numbered 101 crosses the Av. Cali in the data. The closest is the
   # KR 101 (184 m away); this is the real Av. Cali crossing nearest to it (about 200 m).
   nombre: AK 104 con AC 72
-  source: frontend/smaforos blender/renders_escenarios
-# A history report shows one of these renders instead of the live camera (fixed per report)
+  lat: 4.70597
+  lng: -74.11899
+  electrico: rojo
+  falla: false
+  source: data/test_videos/cctv_s8.mp4
+# History reports show the corresponding intersection capture (escena_s1.png .. escena_s8.png)
 # Road network with names (MVIETIQUET), shared with the panel map
 road_network: frontend/Semaforos 3/panel-supervision-semaforo/src/assets/malla-vial-bogota.geojson
-history_scenes: frontend/smaforos blender/renders_escenarios
+history_scenes: data/history_scenes
 database:
   path: ./data/optisignal.db
   backup_path: ./data/backups/

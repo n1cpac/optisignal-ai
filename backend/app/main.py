@@ -13,8 +13,8 @@ from fastapi.responses import FileResponse, StreamingResponse
 from app import database
 from app.config import ROOT, SETTINGS
 from app.detector import Detector
-from app.models import EnvioReporte, PaginaReportes, Semaforo
-from app.monitor import Monitor, VisionResult
+from app.models import Cabezal, EnvioReporte, PaginaReportes, Semaforo
+from app.monitor import Monitor, NORMAL_BOX_COLOR, VisionResult, align_boxes_to_frame, annotate_and_encode
 from app.ubicacion import MallaVial
 
 LIGHTS = {"rojo", "amarillo", "verde"}
@@ -69,7 +69,7 @@ def with_positions(semaforos: list[dict], ruta_malla: Path = ROOT / SETTINGS["ro
 
 
 SEMAFOROS = {s["id"]: s for s in with_positions(with_random_renders(SETTINGS["semaforos"]))}
-STREAM_INTERVAL_SECONDS = SETTINGS["detector"]["inference_interval_seconds"]
+STREAM_INTERVAL_SECONDS = 1.0 / max(1, int(SETTINGS["camera"].get("fps", 15)))
 
 
 @asynccontextmanager
@@ -88,6 +88,19 @@ app = FastAPI(title="OptiSignal", lifespan=lifespan)
 
 def to_semaforo(config: dict, result: VisionResult | None) -> Semaforo:
     tiene_anomalia = (result.anomalia_confirmada is not None) if (result and result.anomalia_confirmada) else config.get("falla", False)
+    cabezales = (
+        [
+            Cabezal(
+                numero=getattr(b, "numero", idx),
+                estadoVisual=b.estado_visual,
+                confianza=b.confianza,
+                anomalia=b.anomalia_confirmada,
+            )
+            for idx, b in enumerate(result.boxes, start=1)
+        ]
+        if (result and result.boxes)
+        else []
+    )
     return Semaforo(
         id=config["id"],
         nombre=config["nombre"],
@@ -102,6 +115,7 @@ def to_semaforo(config: dict, result: VisionResult | None) -> Semaforo:
         confianza=result.confianza if result else None,
         imagenUrl=f"/camaras/{config['id']}/mjpeg",
         ultimaActualizacion=result.actualizado if result else datetime.now(timezone.utc).isoformat(),
+        cabezales=cabezales,
     )
 
 
@@ -130,11 +144,26 @@ def abrir_alerta(alerta_id: int) -> dict[str, bool]:
 
 @app.get("/reportes/{reporte_id}/escena")
 def escena_reporte(reporte_id: int) -> FileResponse:
-    """Escena para un reporte del historial: un render al azar, siempre el mismo para el mismo reporte."""
-    escenas = sorted((ROOT / SETTINGS["history_scenes"]).glob("*.png"))
+    """Escena del semaforo al que pertenece el reporte; si el id no existe en BD, usa un render determinista."""
+    carpeta = ROOT / SETTINGS["history_scenes"]
+    semaforo_id = database.semaforo_de_reporte(reporte_id)
+    if semaforo_id is not None:
+        propia = carpeta / f"escena_{semaforo_id}.png"
+        if propia.is_file():
+            return FileResponse(propia, media_type="image/png")
+    escenas = sorted(carpeta.glob("*.png"))
     if not escenas:
         raise HTTPException(status_code=404, detail="No hay escenas disponibles")
     return FileResponse(escenas[random.Random(reporte_id).randrange(len(escenas))], media_type="image/png")
+
+
+@app.post("/reportes/reset")
+def resetear_reportes() -> dict[str, bool]:
+    database.reset_reportes()
+    monitor = getattr(app.state, "monitor", None)
+    if monitor is not None and hasattr(monitor, "reset_alerts"):
+        monitor.reset_alerts()
+    return {"ok": True}
 
 
 @app.post("/reportes/envio")
@@ -151,11 +180,51 @@ async def camara_mjpeg(semaforo_id: str) -> StreamingResponse:
     if semaforo_id not in SEMAFOROS:
         raise HTTPException(status_code=404, detail="Semaforo no encontrado")
 
+    poll_interval = STREAM_INTERVAL_SECONDS * 0.5
+
     async def frames():
-        while True:
-            result = app.state.monitor.results.get(semaforo_id)
-            if result and result.jpeg:
-                yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + result.jpeg + b"\r\n"
-            await asyncio.sleep(STREAM_INTERVAL_SECONDS)
+        last_seq = -1
+        last_result_ts = None
+        last_emitted_at = 0.0
+        monitor = app.state.monitor
+        if hasattr(monitor, "active_streams"):
+            monitor.active_streams.add(semaforo_id)
+        try:
+            while True:
+                monitor = app.state.monitor
+                feed = monitor.feeds.get(semaforo_id)
+                result = monitor.results.get(semaforo_id)
+                result_ts = result.actualizado if result else None
+                now_mono = asyncio.get_running_loop().time()
+                if feed is not None and hasattr(feed, "read_with_seq"):
+                    frame, seq = feed.read_with_seq()
+                    if (
+                        frame is not None
+                        and (seq != last_seq or result_ts != last_result_ts)
+                        and (now_mono - last_emitted_at >= STREAM_INTERVAL_SECONDS * 0.90)
+                    ):
+                        boxes = result.boxes if (result and hasattr(result, "boxes")) else ()
+                        source_frame = result.source_frame if (result and hasattr(result, "source_frame")) else None
+                        if boxes and source_frame is not None:
+                            boxes = align_boxes_to_frame(source_frame, frame, boxes)
+                        jpeg = annotate_and_encode(
+                            frame,
+                            box=boxes[0].box if boxes else (result.box if result else None),
+                            label=result.etiqueta if result else None,
+                            box_color=result.box_color if result else NORMAL_BOX_COLOR,
+                            boxes=boxes,
+                        )
+                        if jpeg:
+                            last_seq = seq
+                            last_result_ts = result_ts
+                            last_emitted_at = now_mono
+                            yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
+                elif result and result.jpeg and result_ts != last_result_ts:
+                    last_result_ts = result_ts
+                    yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + result.jpeg + b"\r\n"
+                await asyncio.sleep(poll_interval)
+        finally:
+            if hasattr(monitor, "active_streams"):
+                monitor.active_streams.discard(semaforo_id)
 
     return StreamingResponse(frames(), media_type="multipart/x-mixed-replace; boundary=frame")

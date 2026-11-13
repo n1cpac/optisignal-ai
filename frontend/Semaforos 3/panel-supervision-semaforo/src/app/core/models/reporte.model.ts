@@ -1,4 +1,5 @@
 export type Destinatario = 'transito' | 'tecnicos';
+export type TipoFalla = 'funcionamiento' | 'dano';
 
 /** Lo que el operador marco al confirmar un reporte desde el panel. */
 export interface OpcionesReporte {
@@ -8,6 +9,8 @@ export interface OpcionesReporte {
   falla: boolean | null; // null en reportes anteriores a esta opcion
   destinatarios: Destinatario[];
   comentario: string | null;
+  tipoFalla?: TipoFalla | null;
+  semaforosAfectados?: number[];
 }
 
 export interface Reporte {
@@ -41,4 +44,6 @@ export interface EnvioReporte {
   falla: boolean; // el operador confirma un fallo en el semaforo
   comentario: string;
   destinatarios: Destinatario[]; // solo con fallo; puede ir vacio
+  tipoFalla?: TipoFalla | null;
+  semaforosAfectados?: number[];
 }

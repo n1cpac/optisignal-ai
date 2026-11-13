@@ -1,9 +1,9 @@
-import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { ApiService } from '../../core/services/api.service';
-import { Destinatario, OpcionesReporte } from '../../core/models/reporte.model';
+import { Destinatario, OpcionesReporte, TipoFalla } from '../../core/models/reporte.model';
 
 type EstadoEnvio = 'inactivo' | 'enviando' | 'enviado' | 'error';
 
@@ -34,6 +34,30 @@ type EstadoEnvio = 'inactivo' | 'enviando' | 'enviado' | 'error';
 
       @if (falla) {
         <fieldset>
+          <legend>Tipo de reporte de falla</legend>
+          <label>
+            <input type="radio" name="tipoFalla" [value]="'funcionamiento'" [(ngModel)]="tipoFalla" />
+            Por funcionamiento (secuencia o intermitencia)
+          </label>
+          <label>
+            <input type="radio" name="tipoFalla" [value]="'dano'" [(ngModel)]="tipoFalla" />
+            Por daño (apagado o daño físico)
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Semáforos con falla (numeración de izquierda a derecha en cámara)</legend>
+          <div class="semaforos-grid">
+            @for (num of numerosSemaforos; track num) {
+              <label>
+                <input type="checkbox" [name]="'sem_' + num" [(ngModel)]="semaforosSeleccionados[num]" />
+                Semáforo #{{ num }}
+              </label>
+            }
+          </div>
+        </fieldset>
+
+        <fieldset>
           <legend>Enviar a (opcional)</legend>
           <label><input type="checkbox" name="transito" [(ngModel)]="destinatarios.transito" /> Policía de tránsito</label>
           <label><input type="checkbox" name="tecnicos" [(ngModel)]="destinatarios.tecnicos" /> Técnicos de reparación</label>
@@ -61,6 +85,7 @@ type EstadoEnvio = 'inactivo' | 'enviando' | 'enviado' | 'error';
     .reporte { display: flex; flex-direction: column; gap: 10px; border: 2px solid #fff; padding: 12px; }
     h3 { margin: 0; font-size: 20px; }
     fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+    .semaforos-grid { display: flex; flex-wrap: wrap; gap: 10px 16px; }
     .campos { gap: 10px; }
     .campos:disabled textarea { color: #ddd; border-color: #555; }
     /* Deshabilitados, los radios quedan grises: se resalta la opcion marcada para que se lea */
@@ -79,6 +104,7 @@ export class ReportFormComponent implements OnChanges {
   /** Al cambiar de semaforo o de reporte el formulario se limpia. */
   @Input({ required: true }) semaforoId!: string;
   @Input() reporteId: string | null = null;
+  @Input() cantidadSemaforos = 1;
   /** Opciones de un reporte ya verificado: el formulario las muestra en solo lectura. */
   @Input() opciones: OpcionesReporte | null = null;
   /** Id del reporte recien creado. */
@@ -88,15 +114,41 @@ export class ReportFormComponent implements OnChanges {
 
   coincide: boolean | null = null;
   falla: boolean | null = null;
+  tipoFalla: TipoFalla | null = null;
+  semaforosSeleccionados: Record<number, boolean> = { 1: true };
   comentario = '';
   destinatarios = { transito: false, tecnicos: false };
   estado: EstadoEnvio = 'inactivo';
 
-  get puedeEnviar(): boolean {
-    return this.coincide !== null && this.falla !== null && this.estado !== 'enviando';
+  get numerosSemaforos(): number[] {
+    const maxNum = Math.max(
+      this.cantidadSemaforos || 1,
+      ...(this.opciones?.semaforosAfectados ?? [1]),
+      1
+    );
+    return Array.from({ length: maxNum }, (_, i) => i + 1);
   }
 
-  ngOnChanges(): void {
+  get puedeEnviar(): boolean {
+    if (this.coincide === null || this.falla === null || this.estado === 'enviando') {
+      return false;
+    }
+    if (this.falla) {
+      const haySemaforo = this.numerosSemaforos.some((n) => !!this.semaforosSeleccionados[n]);
+      return this.tipoFalla !== null && haySemaforo;
+    }
+    return true;
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    const cambioObjetivo = !!changes['semaforoId'] || !!changes['reporteId'] || !!changes['opciones'];
+    if (!cambioObjetivo && !this.opciones) {
+      if ((this.cantidadSemaforos || 1) === 1 && !Object.keys(this.semaforosSeleccionados).length) {
+        this.semaforosSeleccionados = { 1: true };
+      }
+      return;
+    }
+
     this.estado = 'inactivo';
     if (!this.opciones) {
       this.reiniciar();
@@ -104,6 +156,12 @@ export class ReportFormComponent implements OnChanges {
     }
     this.coincide = this.opciones.coincide;
     this.falla = this.opciones.falla;
+    this.tipoFalla = this.opciones.tipoFalla ?? null;
+    const seleccionados: Record<number, boolean> = {};
+    for (const n of this.opciones.semaforosAfectados ?? []) {
+      seleccionados[n] = true;
+    }
+    this.semaforosSeleccionados = seleccionados;
     this.comentario = this.opciones.comentario ?? '';
     this.destinatarios = {
       transito: this.opciones.destinatarios.includes('transito'),
@@ -114,10 +172,15 @@ export class ReportFormComponent implements OnChanges {
   enviar(): void {
     if (!this.puedeEnviar || this.coincide === null || this.falla === null) return;
 
-    // Los destinatarios solo cuentan con fallo: si se marcaron y luego se eligio "No hay fallo", no se envian
+    // Los destinatarios y detalle de falla solo aplican cuando hay fallo en el semaforo
     const destinatarios: Destinatario[] = [];
     if (this.falla && this.destinatarios.transito) destinatarios.push('transito');
     if (this.falla && this.destinatarios.tecnicos) destinatarios.push('tecnicos');
+
+    const semaforosAfectados = this.falla
+      ? this.numerosSemaforos.filter((n) => !!this.semaforosSeleccionados[n])
+      : [];
+    const tipoFalla = this.falla ? this.tipoFalla : null;
 
     this.estado = 'enviando';
     this.api
@@ -126,7 +189,9 @@ export class ReportFormComponent implements OnChanges {
         coincide: this.coincide,
         falla: this.falla,
         comentario: this.comentario.trim(),
-        destinatarios
+        destinatarios,
+        tipoFalla,
+        semaforosAfectados
       })
       .subscribe({
         next: ({ id }) => {
@@ -141,6 +206,8 @@ export class ReportFormComponent implements OnChanges {
   private reiniciar(): void {
     this.coincide = null;
     this.falla = null;
+    this.tipoFalla = null;
+    this.semaforosSeleccionados = (this.cantidadSemaforos || 1) === 1 ? { 1: true } : {};
     this.comentario = '';
     this.destinatarios = { transito: false, tecnicos: false };
   }

@@ -71,12 +71,16 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
   private mapaListo = signal(false);
   private mapa?: MaplibreMap;
   private redimension?: ResizeObserver;
+  private ultimaFirmaSemaforos = '';
 
   constructor() {
-    // Actualiza los puntos de los semaforos en cada consulta
+    // Actualiza los puntos de los semaforos solo cuando cambian sus coordenadas o estado operativo
     effect(() => {
       const lista = this.state.semaforos();
       if (!this.mapaListo() || !this.mapa) return;
+      const firma = lista.map((s) => `${s.id}:${s.lng}:${s.lat}:${s.estadoOperativo}`).join('|');
+      if (firma === this.ultimaFirmaSemaforos) return;
+      this.ultimaFirmaSemaforos = firma;
       this.zone.runOutsideAngular(() => {
         (this.mapa!.getSource('semaforos') as GeoJSONSource).setData(this.aGeoJson(lista));
       });
@@ -149,7 +153,10 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
     //    datos no traen tipo en cruces, puentes y glorietas
     mapa.addSource('malla', {
       type: 'geojson',
-      data: new URL('assets/malla-vial-bogota.geojson', document.baseURI).href
+      data: new URL('assets/malla-vial-bogota.geojson', document.baseURI).href,
+      tolerance: 0.6,
+      buffer: 64,
+      maxzoom: 16
     });
     mapa.addLayer({
       id: 'malla-vial',

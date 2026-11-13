@@ -79,6 +79,13 @@ const PASO_TECLADO = 24;
         ></div>
         <aside #der class="derecha"><app-semaforo-detail /></aside>
       </div>
+      <button
+        type="button"
+        class="debug-reset"
+        title="Reiniciar base de datos y alertas"
+        aria-label="Reiniciar base de datos y alertas"
+        (click)="state.resetearDemo()"
+      ></button>
     </div>
   `,
   styles: [`
@@ -102,6 +109,26 @@ const PASO_TECLADO = 24;
     .separador { background: #333; cursor: col-resize; touch-action: none; }
     .separador:hover, .separador:focus-visible { background: #1e6fff; outline: none; }
     .arrastrando .separador:active { background: #1e6fff; }
+    .debug-reset {
+      position: fixed;
+      left: 4px;
+      bottom: 4px;
+      width: 14px;
+      height: 14px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.2s, background 0.2s;
+    }
+    .debug-reset:hover, .debug-reset:focus-visible {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.16);
+      outline: none;
+    }
 
     /* Pantallas angostas: una sola columna, con el mapa arriba */
     @media (max-width: 900px) {

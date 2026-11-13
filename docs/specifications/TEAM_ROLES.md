@@ -1,261 +1,55 @@
-# Distribución de responsabilidades del equipo — OptiSignal-AI
+# Distribución de responsabilidades y arquitectura por módulos — OptiSignal-AI
 
 ## Introducción
 
-Este documento define los roles, responsabilidades y áreas de trabajo para los tres integrantes del equipo de desarrollo de OptiSignal-AI.
+Este documento refleja las áreas de trabajo reales del equipo (Juan Cerón, Juan Camilo Niño y Nicolás Acevedo — UMNG) tras el ajuste metodológico que **descartó el prototipo físico ESP32** y consolidó la validación sobre **8 cámaras urbanas reales de Bogotá D.C.**
 
 ---
 
-## Integrante 1: Visión por Computador y Datasets
+## Área 1: Visión por Computador, Datasets y Tracking
 
-### Responsabilidades principales
-
-1. **Curaduría y estructuración de datasets abiertos**
-   - Detectar datasets locales LISA/BSTLD y usar Google Drive como fallback
-   - Mantener intactos los originales y procesar cada fuente de forma independiente
-   - Homogeneizar las etiquetas al formato estándar de YOLO (`.txt`)
-   - Realizar partición estadística: 70% entrenamiento, 20% validación, 10% pruebas
-   - Documentar el proceso de preparación de datos
-
-2. **Entrenamiento y benchmarking del detector YOLO**
-   - Seleccionar versión ligera (YOLOv8n / YOLOv11n)
-   - Realizar transferencia de aprendizaje (*transfer learning*)
-   - Evaluar métricas: Precision, Recall, mAP@50
-   - Exportar pesos óptimos a `models/best.pt`
-   - Documentar resultados de entrenamiento
-
-3. **Segmentación geométrica y análisis cromático**
-   - Implementar división de ROI en tres zonas verticales (Rojo, Amarillo, Verde)
-   - Desarrollar algoritmo de clasificación en espacio HSV
-   - Definir y ajustar rangos de color para cada lente
-   - Implementar detección de brillo insuficiente y lentes obstruidos
-   - Crear módulo `classifier.py` en el backend
-
-4. **Pruebas y validación de visión**
-   - Probar inferencia en tiempo real con OpenCV
-   - Evaluar rendimiento en diferentes condiciones de iluminación
-   - Generar matriz de confusión para clasificación cromática
-   - Documentar casos de borde y limitaciones
-
-### Archivos principales
-
-```
-backend/app/detector.py
-backend/app/classifier.py
-data/datasets/
-models/best.pt
-REPORTS/vision_performance.md
-```
-
-### Hitos de la Fase 1
-
-- [ ] Datasets descargados y estructurados
-- [ ] Formato YOLO homogeneizado
-- [ ] Partición estadística completada
-- [ ] Documentación de preparación de datos
+### Alcance implementado
+1. **Datasets y evolución hacia Bogotá**
+   - Curaduría base de LISA (36,775 imgs) y Bosch (7,147 imgs) con partición 70/20/10.
+   - Construcción del dataset **`bogota_augmented`** (450 imgs: 315 train / 90 val / 45 test) y curación de los 8 videos reales `cctv_s1.mp4`–`cctv_s8.mp4`.
+2. **Detección unificada y filtrado geométrico (`detector.py`)**
+   - Entrenamiento de **`models/optisignal_best.pt`** (YOLOv8n, `freeze=10`, 99.50 % mAP@50) operando a `1280px` sin ensamble lento.
+   - Filtrado geométrico anti-peatones/postes/OSD, NMS estricto y completado geométrico de pórticos cantiléver.
+3. **Tracking y compensación de movimiento (`tracker.py`, `motion.py`)**
+   - Compensación global de movimiento con flujo óptico **Lucas-Kanade + RANSAC** (`motion.py`).
+   - **ByteTrack + Filtro de Kalman 6D + correlación NCC** con límites de expansión dimensional y numeración izquierda-derecha (`#1..#N`).
+4. **Clasificación cromática HSV (`classifier.py`)**
+   - Columna óptica central del 75 %, rescate de *bloom* nocturno, descuento de cielo y filtro anti-sangrado (*halo bleed*).
 
 ---
 
-## Integrante 2: Lógica de Control y Backend
+## Área 2: Máquina de Estados, Backend FastAPI y Persistencia
 
-### Responsabilidades principales
-
-1. **Máquina de estados finitos (FSM)**
-   - Implementar la secuencia colombiana: Rojo → Amarillo → Verde → Amarillo → Rojo
-   - Definir tabla de transiciones válidas e inválidas
-   - Implementar histéresis temporal (ventana de N fotogramas)
-   - Crear módulo `state_machine.py`
-   - Documentar lógica de validación
-
-2. **API REST con FastAPI**
-   - Implementar endpoints: `/health`, `/status`, `/alerts`, `/alerts/{id}`, `DELETE /alerts`
-   - Definir esquemas JSON para respuestas
-   - Implementar autenticación básica (si es requerida)
-   - Documentar API con Swagger/OpenAPI
-   - Crear módulo `main.py`
-
-3. **Gestión de base de datos SQLite**
-   - Diseñar esquema de tablas para anomalías
-   - Implementar CRUD operations
-   - Almacenar timestamp, tipo de anomalía, estado observado, confianza, ruta de evidencia
-   - Crear módulo `database.py`
-   - Implementar backup automático
-
-4. **Integración del pipeline**
-   - Conectar salida de YOLO con clasificador HSV
-   - Alimentar máquina de estados en cada ciclo
-   - Registrar anomalías confirmadas en base de datos
-   - Implementar manejo de errores y recuperación
-
-5. **Pruebas unitarias e integración**
-   - Crear tests para FSM
-   - Crear tests para API endpoints
-   - Crear tests para operaciones de base de datos
-   - Documentar cobertura de tests
-
-### Archivos principales
-
-```
-backend/app/main.py
-backend/app/state_machine.py
-backend/app/database.py
-backend/app/models.py
-backend/tests/
-REPORTS/backend_api_spec.md
-```
-
-### Hitos de la Fase 1
-
-- [ ] Especificación de FSM completada
-- [ ] Tabla de transiciones documentada
-- [ ] Esquema de base de datos diseñado
-- [ ] Endpoints de API especificados
+### Alcance implementado
+1. **Validación temporal y sincronización (`state_machine.py`, `monitor.py`)**
+   - FSM de la secuencia vial colombiana (`ROJO -> AMARILLO_PREP -> VERDE -> AMARILLO_DESP -> ROJO`).
+   - Detección de `AMARILLO_INTERMITENTE` en ventana temporal (`5.5 s`), sincronización de pórticos, estabilidad en bucle y `_alert_lock`.
+2. **API REST, streaming MJPEG y georreferenciación (`main.py`, `models.py`, `ubicacion.py`, `camera.py`)**
+   - Endpoints `/semaforos`, `/camaras/{id}/mjpeg`, `/reportes`, `/reportes/{id}/abrir`, `/reportes/{id}/escena`, `/reportes/envio`, `/reportes/reset`.
+   - Resolución automática de cruces sobre la **Malla Vial de Bogotá** (`malla-vial-bogota.geojson`).
+3. **Base de datos SQLite y pruebas (`database.py`, `backend/tests/`)**
+   - Gestión de alertas automáticas, atención por reporte, historial, escenas fijas por cruce (`escena_s1..s8.png`) y **83 pruebas automatizadas**.
 
 ---
 
-## Integrante 3: Frontend, Integración y Hardware
+## Área 3: Frontend Angular, Integración y Documentación
 
-### Responsabilidades principales
-
-1. **Desarrollo de interfaz web con Angular**
-   - Crear componente dashboard con indicador visual del semáforo
-   - Crear módulo de alertas con tabla histórica y filtros
-   - Crear módulo de estado del sistema (FPS, recursos, contador de alertas)
-   - Implementar componente visual reutilizable `traffic-light`
-   - Implementar componente reutilizable `alert-card`
-   - Configurar enrutamiento en `app.routes.ts`
-
-2. **Comunicación frontend-backend**
-   - Crear servicio `api.service.ts` para peticiones HTTP
-   - Implementar polling periódico (1-2 segundos) al endpoint `/status`
-   - Manejar errores de conexión y reconexión
-   - Implementar actualización en tiempo real del estado
-
-3. **Integración del sistema completo**
-   - Integrar frontend con API REST del backend
-   - Realizar pruebas end-to-end
-   - Validar flujo completo: captura → detección → FSM → almacenamiento → visualización
-   - Documentar procedimiento de integración
-
-4. **Firmware de prototipo ESP32**
-   - Programar secuencia normal colombiana en microcontrolador
-   - Implementar comandos vía puerto serial para inyectar fallas
-   - Crear interfaz de control de LEDs (Rojo, Amarillo, Verde)
-   - Documentar procedimiento de pruebas de laboratorio
-
-5. **Configuración de Docker Compose**
-   - Crear `docker-compose.yml` con servicios backend y frontend
-   - Configurar volúmenes para modelos y datos
-   - Definir variables de entorno
-   - Documentar procedimiento de ejecución
-
-6. **Documentación general**
-   - Crear `README.md` con instrucciones de instalación
-   - Documentar procedimiento de ejecución local y vía Docker
-   - Crear guía de uso de la interfaz web
-   - Documentar troubleshooting común
-
-### Archivos principales
-
-```
-frontend/src/app/
-frontend/Dockerfile
-prototype/esp32/
-docker-compose.yml
-README.md
-CONTRIBUTING.md
-```
-
-### Hitos de la Fase 1
-
-- [ ] Estructura de componentes Angular diseñada
-- [ ] Servicio de API especificado
-- [ ] Dockerfile para frontend creado
-- [ ] Estructura de Docker Compose definida
+### Alcance implementado
+1. **Panel web de supervisión (`frontend/Semaforos 3/panel-supervision-semaforo/`)**
+   - Mapa interactivo Leaflet de Bogotá con estado en vivo de `s1`–`s8`.
+   - Tarjeta simplificada de alertas activas en panel izquierdo (zona, fecha/hora y descripción).
+   - Vista de detalle con video MJPEG a 15 FPS y cajas numeradas `#1..#N`.
+   - Formulario de reporte con selección de `tipoFalla` (`funcionamiento` o `daño`) y cabezales afectados (`semaforosAfectados`).
+   - Sincronización entre `Actuales` e `Historial` con escena correspondiente y botón discreto de reset en esquina inferior izquierda.
+2. **Auditoría, optimización del repositorio y documentación**
+   - Eliminación de artefactos pesados no utilizados y descarte documentado de la fase de hardware ESP32.
+   - Actualización de `README.md`, `COMO_EJECUTAR.txt`, `docs/phases/` y `docs/specifications/` como base para la presentación del proyecto.
 
 ---
 
-## Comunicación y coordinación
-
-### Reuniones
-
-- **Reunión de planificación:** Inicio de cada semana (lunes)
-- **Reunión de sincronización:** Mitad de semana (miércoles)
-- **Reunión de cierre:** Fin de semana (viernes)
-- **Duración:** 30-45 minutos cada una
-
-### Canales de comunicación
-
-- **GitLab Issues:** Para tareas y seguimiento
-- **GitLab Merge Requests:** Para revisión de código
-- **Documentación:** En archivos `.md` del repositorio
-- **Chat:** Para comunicación rápida (si es disponible)
-
-### Convención de ramas Git
-
-```
-main                          # Código estable
-develop                       # Integración de features
-feature/vision-*              # Features de visión (Integrante 1)
-feature/backend-*             # Features de backend (Integrante 2)
-feature/frontend-*            # Features de frontend (Integrante 3)
-bugfix/*                      # Correcciones de bugs
-```
-
-### Revisión de código
-
-- Mínimo 1 revisor antes de merge a `develop`
-- Mínimo 2 revisores antes de merge a `main`
-- Todos los tests deben pasar
-- Documentación debe estar actualizada
-
----
-
-## Dependencias entre roles
-
-### Integrante 1 → Integrante 2
-- Proporciona: Modelo YOLO entrenado (`best.pt`), especificación de clasificador HSV
-- Recibe: Feedback sobre rendimiento en tiempo real
-
-### Integrante 2 → Integrante 3
-- Proporciona: API REST especificada, esquema de respuestas JSON
-- Recibe: Feedback sobre usabilidad de endpoints
-
-### Integrante 3 → Integrante 1 y 2
-- Proporciona: Prototipo ESP32 para pruebas, Docker Compose para ejecución
-- Recibe: Componentes finalizados para integración
-
----
-
-## Criterios de aceptación por rol
-
-### Integrante 1
-- [ ] Datasets estructurados y documentados
-- [ ] Modelo YOLO con mAP@50 ≥ 90%
-- [ ] Clasificador HSV con precisión ≥ 95%
-- [ ] Tiempo de inferencia < 35 ms por fotograma
-- [ ] Documentación técnica completa
-
-### Integrante 2
-- [ ] FSM implementada y validada
-- [ ] API REST funcional con todos los endpoints
-- [ ] Base de datos SQLite con almacenamiento de anomalías
-- [ ] Tests unitarios con cobertura ≥ 80%
-- [ ] Documentación de API (Swagger)
-
-### Integrante 3
-- [ ] Dashboard Angular funcional
-- [ ] Módulo de alertas con filtros
-- [ ] Comunicación frontend-backend en tiempo real
-- [ ] Docker Compose ejecutable
-- [ ] Documentación de usuario completa
-
----
-
-## Escalabilidad futura
-
-Si el equipo crece:
-
-- **Integrante 4:** QA y pruebas automatizadas
-- **Integrante 5:** DevOps y despliegue en producción
-- **Integrante 6:** Documentación técnica y capacitación
+**Nota sobre el estado del proyecto:** Funcional y verificado en pruebas técnicas; pendiente de ajustes menores y elaboración de la presentación final.

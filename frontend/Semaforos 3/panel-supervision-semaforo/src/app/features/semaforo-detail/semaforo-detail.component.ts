@@ -46,6 +46,7 @@ import { ReportFormComponent } from './report-form.component';
       <app-report-form
         [semaforoId]="r.semaforoId"
         [reporteId]="r.id"
+        [cantidadSemaforos]="cantidadCabezales(r.semaforoId)"
         [opciones]="r.opciones"
         (enviado)="state.abrirReporteNuevo($event)"
       />
@@ -86,9 +87,23 @@ import { ReportFormComponent } from './report-form.component';
             <small>· Confianza {{ s.confianza | percent }}</small>
           }
         </p>
+
+        @if (s.cabezales?.length) {
+          <div class="cabezales">
+            @for (c of s.cabezales; track c.numero) {
+              <span class="cabezal" [class.alerta]="!!c.anomalia">
+                <strong>#{{ c.numero }}</strong>: {{ etiquetasVisual[c.estadoVisual] }}
+              </span>
+            }
+          </div>
+        }
       </section>
 
-      <app-report-form [semaforoId]="s.id" />
+      <app-report-form
+        [semaforoId]="s.id"
+        [cantidadSemaforos]="s.cabezales?.length || 1"
+        (enviado)="state.reporteEnviadoEnVivo(s.id)"
+      />
     } @else {
       <p class="vacio">Selecciona un reporte del historial o un semáforo en el mapa.</p>
     } }
@@ -108,6 +123,9 @@ import { ReportFormComponent } from './report-form.component';
     img { display: block; width: 100%; height: auto; }
     .deteccion { margin: 0; }
     .deteccion small { margin-left: 6px; }
+    .cabezales { display: flex; flex-wrap: wrap; gap: 6px; }
+    .cabezal { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #2c2c2c; border: 1px solid #555; color: #ddd; }
+    .cabezal.alerta { background: #5c1916; border-color: #ff6a5c; color: #fff; }
     .historial { display: flex; gap: 10px; align-items: center; margin: 0; }
     .estado { padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: #8a1f1c; }
     .estado.verificado { background: #2e5e12; }
@@ -122,6 +140,7 @@ export class SemaforoDetailComponent {
   protected readonly etiquetasVisual: Record<EstadoVisual, string> = {
     rojo: 'Rojo',
     amarillo: 'Amarillo',
+    amarillo_intermitente: 'Amarillo intermitente (Falla)',
     verde: 'Verde',
     apagado: 'Apagado',
     multiple: 'Varias luces encendidas',
@@ -132,4 +151,8 @@ export class SemaforoDetailComponent {
 
   /** La URL se usa tal cual la entrega el backend (captura nueva o transmision MJPEG). */
   protected imagenSrc = computed(() => this.state.seleccionado()?.imagenUrl ?? '');
+
+  protected cantidadCabezales(semaforoId: string): number {
+    return this.state.semaforos().find((x) => x.id === semaforoId)?.cabezales?.length || 1;
+  }
 }
