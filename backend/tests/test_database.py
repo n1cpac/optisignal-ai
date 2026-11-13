@@ -145,3 +145,22 @@ def test_alerts_from_a_previous_address_leave_current_alerts(db):
 
     database.insert_reporte(envio("s6"), "AK 7 con CL 84")  # un reporte del lugar nuevo
     assert database.alerta_vista(vieja) is False  # no verifica la alerta del lugar anterior
+
+
+def test_history_keeps_only_the_newest_entries_of_each_traffic_light(db):
+    ids = [database.insert_reporte(envio("s1", falla=False, destinatarios=[], comentario=str(i)), "AC 13")
+           for i in range(4)]
+    otro = database.insert_reporte(envio("s2"), "AC 72")
+
+    restantes = {int(r.id) for r in database.list_reportes("historial")[0]}
+    assert restantes == {*ids[1:], otro}  # el mas antiguo de s1 se borro; s2 no se toca
+
+
+def test_pruning_a_report_also_removes_the_alerts_it_verified(db):
+    alerta("s1")
+    database.insert_reporte(envio("s1"), "AC 13")  # verifica la alerta
+    for _ in range(3):
+        database.insert_reporte(envio("s1"), "AC 13")
+
+    with sqlite3.connect(database.DB_PATH) as conn:
+        assert conn.execute("SELECT count(*) FROM reportes").fetchone()[0] == 3

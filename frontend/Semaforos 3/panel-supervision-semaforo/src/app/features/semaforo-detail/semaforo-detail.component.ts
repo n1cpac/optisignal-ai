@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { DatePipe, PercentPipe } from '@angular/common';
 
-import { EstadoVisual } from '../../core/models/semaforo.model';
+import { EstadoLuz, EstadoVisual } from '../../core/models/semaforo.model';
 import { PanelStateService } from '../../core/services/panel-state.service';
 import { TrafficLightComponent } from '../../shared/components/traffic-light/traffic-light.component';
 import { ReportFormComponent } from './report-form.component';
@@ -54,7 +54,7 @@ import { ReportFormComponent } from './report-form.component';
       <h2>{{ s.nombre }}</h2>
 
       <section class="electrico">
-        <app-traffic-light [luces]="s.lucesElectricas" />
+        <app-traffic-light [ciclo]="grafico().ciclo" [luces]="grafico().luces" [parpadeo]="grafico().parpadeo" />
         <div class="rotulos">
           <strong>Estado semáforo</strong>
           <span>Sistema eléctrico</span>
@@ -151,6 +151,27 @@ export class SemaforoDetailComponent {
 
   /** La URL se usa tal cual la entrega el backend (captura nueva o transmision MJPEG). */
   protected imagenSrc = computed(() => this.state.seleccionado()?.imagenUrl ?? '');
+
+  /** Normal: ciclo de un semaforo funcional. Anomalia: lo que YOLO ve en el semaforo #1. */
+  protected grafico = computed(() => {
+    const s = this.state.seleccionado();
+    const sinLuces = { ciclo: false, luces: [] as EstadoLuz[], parpadeo: null as EstadoLuz | null };
+    if (!s) return sinLuces;
+    if (s.estadoOperativo === 'normal') return { ...sinLuces, ciclo: true };
+    const visual = (s.cabezales?.find((c) => c.numero === 1) ?? s.cabezales?.[0])?.estadoVisual ?? s.estadoVisual;
+    switch (visual) {
+      case 'rojo':
+      case 'amarillo':
+      case 'verde':
+        return { ...sinLuces, luces: [visual] };
+      case 'amarillo_intermitente':
+        return { ...sinLuces, parpadeo: 'amarillo' as const };
+      case 'multiple': // shortcut: la lista de luces es del semaforo, no del #1; ajustar si el backend la da por cabezal
+        return { ...sinLuces, luces: s.lucesDetectadas };
+      default: // apagado, sin_deteccion, desconocido, sin_senal: no hay luz que mostrar
+        return sinLuces;
+    }
+  });
 
   protected cantidadCabezales(semaforoId: string): number {
     return this.state.semaforos().find((x) => x.id === semaforoId)?.cabezales?.length || 1;

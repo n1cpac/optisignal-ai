@@ -16,6 +16,7 @@ DB_PATH = (
     else ROOT / SETTINGS["database"]["path"]
 )
 MAX_REPORTES = SETTINGS["api"]["max_alerts_per_response"]
+MAX_HISTORIAL = SETTINGS["database"]["max_history_per_light"]
 ALERT_PREFIX = "[Alerta Automatica Vision]"
 
 # Columnas agregadas despues de la primera version: se crean en bases existentes sin perder datos
@@ -40,6 +41,19 @@ WHERE_VISTA = {
                 "WHERE a.semaforo_id = r.semaforo_id AND " + PENDIENTE_HOY.format(t="a") + ")",
     "historial": "NOT (" + PENDIENTE_HOY.format(t="r") + ") AND NOT (r.automatica = 1 AND r.atendida_por IS NOT NULL)",
 }
+
+
+def podar_historial(db: sqlite3.Connection, hoy: Optional[str] = None) -> None:
+    """Deja en el historial de cada semaforo solo las MAX_HISTORIAL entradas mas recientes."""
+    db.execute(
+        "DELETE FROM reportes WHERE id IN (SELECT id FROM (SELECT r.id, row_number() OVER "
+        f"(PARTITION BY r.semaforo_id ORDER BY r.id DESC) AS n FROM reportes r WHERE {WHERE_VISTA['historial']}) "
+        "WHERE n > :max)",
+        {"hoy": hoy or inicio_de_hoy(), "max": MAX_HISTORIAL},
+    )
+    # Las alertas que verifico un reporte borrado iban dentro de el
+    db.execute("DELETE FROM reportes WHERE automatica = 1 AND atendida_por IS NOT NULL "
+               "AND atendida_por NOT IN (SELECT id FROM reportes)")
 
 
 def _connect() -> sqlite3.Connection:
@@ -96,6 +110,7 @@ def insert_reporte(envio: EnvioReporte, ubicacion: str) -> int:
             "WHERE semaforo_id = ? AND automatica = 1 AND atendida_por IS NULL AND archivada = 0",
             (cursor.lastrowid, envio.semaforoId),
         )
+        podar_historial(db)
         return cursor.lastrowid
 
 
@@ -120,6 +135,7 @@ def archivar_alertas_movidas(direcciones: dict[str, str]) -> int:
             f"AND archivada = 0 AND semaforo_id NOT IN ({marcadores})",
             tuple(direcciones),
         ).rowcount
+        podar_historial(db)
     return archivadas
 
 
