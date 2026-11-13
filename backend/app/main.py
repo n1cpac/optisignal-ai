@@ -1,5 +1,6 @@
 # FastAPI main application
 import asyncio
+import os
 import random
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -9,6 +10,7 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from app import database
 from app.config import ROOT, SETTINGS
@@ -228,3 +230,11 @@ async def camara_mjpeg(semaforo_id: str) -> StreamingResponse:
                 monitor.active_streams.discard(semaforo_id)
 
     return StreamingResponse(frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
+_DEFAULT_FRONTEND_DIST = ROOT / "frontend" / "Semaforos 3" / "panel-supervision-semaforo" / "dist" / "optisignal-panel" / "browser"
+_FRONTEND_DIST = Path(os.environ.get("OPTISIGNAL_FRONTEND_DIST", ROOT / "frontend_dist"))
+if not _FRONTEND_DIST.is_dir() and _DEFAULT_FRONTEND_DIST.is_dir():
+    _FRONTEND_DIST = _DEFAULT_FRONTEND_DIST
+if _FRONTEND_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend")

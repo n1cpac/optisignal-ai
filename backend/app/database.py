@@ -1,14 +1,20 @@
 # SQLite database management
 import json
+import os
 import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from app.config import ROOT, SETTINGS
 from app.models import EnvioReporte, Opciones, Reporte
 
-DB_PATH = ROOT / SETTINGS["database"]["path"]
+DB_PATH = (
+    Path(os.environ["OPTISIGNAL_DB_PATH"])
+    if os.environ.get("OPTISIGNAL_DB_PATH")
+    else ROOT / SETTINGS["database"]["path"]
+)
 MAX_REPORTES = SETTINGS["api"]["max_alerts_per_response"]
 ALERT_PREFIX = "[Alerta Automatica Vision]"
 
