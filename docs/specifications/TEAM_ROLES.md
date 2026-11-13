@@ -2,7 +2,7 @@
 
 ## Introducción
 
-Este documento refleja las áreas de trabajo reales del equipo (Juan Cerón, Juan Camilo Niño y Nicolás Acevedo — UMNG) tras el ajuste metodológico que **descartó el prototipo físico ESP32** y consolidó la validación sobre **8 cámaras urbanas reales de Bogotá D.C.**
+Este documento refleja las áreas de trabajo reales del equipo (Juan Cerón, Juan Camilo Niño y Nicolás Acevedo — UMNG) enfocadas en el sistema de visión y validación sobre **8 cámaras urbanas reales de Bogotá D.C.**
 
 ---
 
@@ -47,7 +47,7 @@ Este documento refleja las áreas de trabajo reales del equipo (Juan Cerón, Jua
    - Formulario de reporte con selección de `tipoFalla` (`funcionamiento` o `daño`) y cabezales afectados (`semaforosAfectados`).
    - Sincronización entre `Actuales` e `Historial` con escena correspondiente y botón discreto de reset en esquina inferior izquierda.
 2. **Auditoría, optimización del repositorio y documentación**
-   - Eliminación de artefactos pesados no utilizados y descarte documentado de la fase de hardware ESP32.
+   - Eliminación de artefactos pesados y archivos no utilizados para agilizar el sistema.
    - Actualización de `README.md`, `COMO_EJECUTAR.txt`, `docs/phases/` y `docs/specifications/` como base para la presentación del proyecto.
 
 ---

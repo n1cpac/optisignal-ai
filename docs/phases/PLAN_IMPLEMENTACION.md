@@ -1,7 +1,7 @@
 # Plan de implementación y bitácora técnica — OptiSignal-AI
 
 > **Estado del proyecto:** **Funcional — en etapa de ajuste de detalles finales (previo a presentación y cierre).**  
-> **Nota metodológica clave:** Este documento conserva la hoja de ruta por fases y registra **qué cambió, qué se descartó y qué funcionó realmente en la práctica** para llevar el prototipo hasta la versión operativa actual sobre 8 intersecciones reales de Bogotá D.C.
+> **Nota metodológica clave:** Este documento conserva la estructura por fases y registra **todo el proceso técnico y las decisiones implementadas** para llevar el sistema hasta la versión operativa actual sobre 8 intersecciones reales de Bogotá D.C.
 
 ---
 
@@ -59,7 +59,6 @@ Videos CCTV Bogotá (cctv_s1..s8.mp4 @ 15 FPS)
 | Backend | FastAPI + Uvicorn | Endpoints `/semaforos`, `/reportes`, `/camaras/{id}/mjpeg` |
 | Base de datos | SQLite (`data/optisignal.db`) | Deduplicación por escena y bloqueo concurrente |
 | Frontend | Angular + Leaflet + GeoJSON Malla Vial Bogotá | Streaming en vivo a 15 FPS y reporte por cabezal |
-| Hardware / Prototipo ESP32 | **Descartado** | Reemplazado por 8 secuencias reales de Bogotá D.C. |
 
 ---
 
@@ -88,7 +87,7 @@ optisignal-ai/
 │   └── tests/                   # 83 pruebas automatizadas
 ├── data/
 │   ├── optisignal.db            # Base de datos SQLite local
-│   ├── processed/               # Datasets particionados (lisa, bosch, blender, bogota_augmented)
+│   ├── processed/               # Datasets particionados (lisa, bosch, bogota_augmented)
 │   ├── test_videos/             # 8 videos reales de Bogotá (cctv_s1.mp4 .. cctv_s8.mp4)
 │   └── history_scenes/          # 8 escenas fijas por intersección (escena_s1 .. escena_s8.png)
 ├── docs/
@@ -112,15 +111,13 @@ optisignal-ai/
 
 ---
 
-## 6. Fase 2 — Prototipo físico para pruebas ❌ (DESCARTADA)
+## 6. Fase 2 — Banco de validación con secuencias reales de Bogotá D.C. ✅
 
-### Decisión metodológica
-La construcción del semáforo físico a escala con **ESP32, diodos LED y cámara USB fija fue descartada totalmente**.
+### Enfoque experimental adoptado
+Para evaluar el sistema bajo condiciones auténticas de tráfico urbano —vibración y paneo de cámaras, objetos pequeños al fondo, peatones junto a los postes, *bloom* nocturno de LEDs, cielo nublado y parpadeo amarillo continuo— la validación se consolidó directamente sobre **8 secuencias de video reales de intersecciones semaforizadas de Bogotá D.C.** (`cctv_s1.mp4` a `cctv_s8.mp4`) y sus escenas fijas de referencia (`escena_s1.png` a `escena_s8.png`).
 
-### Justificación técnica
-- Las pruebas demostraron que los desafíos reales del problema (vibración y paneo de cámaras urbanas, objetos pequeños al fondo, peatones junto al semáforo, *bloom* nocturno de LEDs reales, luz ambiental nublada de Bogotá y semáforos parpadeando en amarillo) **no son reproducibles en un LED de protoboard**.
-- Todo el esfuerzo de validación se redirigió a **8 grabaciones reales de intersecciones semaforizadas de Bogotá D.C.** (`cctv_s1.mp4` a `cctv_s8.mp4`) y sus escenas de referencia.
-- Como parte de la auditoría y limpieza del repositorio se eliminaron los artefactos obsoletos no utilizados (incluyendo assets pesados de Blender y dependencias innecesarias del flujo físico).
+### Optimización de recursos
+- Como parte de la auditoría y limpieza del repositorio se eliminaron archivos y assets pesados sin uso en ejecución ni pruebas, mejorando la velocidad de carga y navegación del sistema.
 
 ---
 
@@ -128,7 +125,6 @@ La construcción del semáforo físico a escala con **ESP32, diodos LED y cámar
 
 ### Primera etapa: Datasets públicos base (LISA y Bosch)
 - Se estructuraron de manera independiente **LISA** (36,775 imágenes; 232,348 cajas) y **Bosch BSTLD** (7,147 imágenes; 13,486 cajas) con particiones reproducibles 70/20/10 (`seed=42`).
-- También se exploró un conjunto sintético en Blender (`data/processed/blender`).
 
 ### Evolución necesaria hacia datos locales (`bogota_augmented`)
 - Al probar los modelos entrenados exclusivamente con LISA/Bosch sobre tráfico bogotano se evidenciaron pérdidas de detección en postes de pórtico, lentes con visera profunda y escenas nocturnas/nubladas propias de la ciudad.

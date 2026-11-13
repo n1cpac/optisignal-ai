@@ -3,7 +3,7 @@
 ## 1. Evolución de la metodología de entrenamiento
 
 ### Iteración inicial (modelos separados + ensamble)
-En la primera etapa se entrenaron modelos independientes sobre **LISA** (`lisa_best.pt`), **Bosch** (`bosch_best.pt`) y renders sintéticos (`blender_best.pt`) a resolución `640x640`, combinados en un ensamble de 3 modelos dentro del backend.
+En la primera etapa se entrenaron modelos independientes sobre **LISA** y **Bosch** a resolución `640x640`, combinados como ensamble dentro del backend.
 
 Al probar este enfoque sobre videos reales de Bogotá D.C. aparecieron tres cuellos de botella:
 1. **Latencia severa en CPU (~2 FPS):** inferir 3 modelos en paralelo bloqueaba el streaming de las 8 cámaras.

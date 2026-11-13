@@ -12,9 +12,6 @@ REQUISITOS (solo la primera vez)
 - Videos de validacion reales en data/test_videos/cctv_s1.mp4 ... cctv_s8.mp4.
 - Pesos del detector unificado en models/optisignal_best.pt.
 
-Nota: No se requiere camara fisica ni prototipo externo (la validacion fisica con ESP32 fue
-descartada y reemplazada por las 8 secuencias urbanas reales de Bogota D.C.).
-
 
 1. BACKEND  (terminal 1)
 ------------------------

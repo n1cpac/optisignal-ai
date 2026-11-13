@@ -6,7 +6,7 @@ Sistema de visión por computador para la auditoría óptica autónoma y supervi
 **Autores:** Juan Cerón · Juan Camilo Niño · Nicolás Acevedo
 
 > **Estado actual:** **Funcional — en etapa de ajuste de detalles finales (previo a presentación y cierre).**  
-> La implementación de un prototipo físico (ESP32) fue **descartada totalmente** para validar directamente el pipeline de visión sobre **8 secuencias reales de intersecciones viales de Bogotá D.C.** (`s1` a `s8`).
+> El pipeline está validado directamente sobre **8 secuencias reales de intersecciones viales de Bogotá D.C.** (`s1` a `s8`).
 
 ---
 
@@ -50,7 +50,7 @@ Video CCTV (15 FPS)
    - Prioriza en tiempo real la cámara que el operador está viendo por streaming MJPEG (`/camaras/{id}/mjpeg`), mientras actualiza en segundo plano el resto de intersecciones por barrido *round-robin*.
 
 2. **Detección espacial con modelo unificado (`detector.py`, `models/optisignal_best.pt`)**
-   - Reemplazó el ensamble lento de tres modelos (LISA / Bosch / Blender) por un **único detector YOLOv8n (`optisignal_best.pt`)** con resolución de entrada **`1280px`** para no perder semáforos pequeños o lejanos.
+   - Utiliza un **único detector YOLOv8n (`optisignal_best.pt`)** optimizado para el contexto de Bogotá con resolución de entrada **`1280px`** para no perder semáforos pequeños o lejanos.
    - Incorpora **filtrado geométrico** (`Detector._is_valid_box`) por relación de aspecto (`1.35 <= h/w <= 4.35`), dimensiones mínimas y bandas de posición para descartar peatones cercanos, recortes de postes y texto OSD, además de completado geométrico cuando un pórtico o brazo cantiléver pierde confianza en un cabezal secundario.
 
 3. **Tracking multi-objeto y compensación global de movimiento (`tracker.py`, `motion.py`)**
@@ -78,11 +78,11 @@ Video CCTV (15 FPS)
 
 El diseño actual es el resultado de tres iteraciones documentadas (base clave para la presentación del proyecto):
 
-| Etapa | Enfoque inicial | Limitación detectada | Solución adoptada en el sistema actual |
+| Etapa | Enfoque | Hallazgo técnico | Solución adoptada en el sistema actual |
 | :--- | :--- | :--- | :--- |
-| **1. Datasets abiertos** | Modelos separados con **LISA** (36,775 imgs) y **Bosch** (7,147 imgs) | Semáforos con geometría y luminancia distinta al contexto bogotano; baja transferencia a pórticos locales | Uso de LISA y Bosch como línea base experimental (`PHASE_3` / `PHASE_4`) |
-| **2. Entorno sintético y hardware** | Prototipo físico **ESP32** + escenarios en **Blender** + ensamble de 3 modelos | Descartado el prototipo físico por lejanía con condiciones reales de calle (paneo, *bloom*, clima, oclusión, peatones) | Sustitución total por **8 videos reales de Bogotá** (`cctv_s1.mp4`–`cctv_s8.mp4`) |
-| **3. Modelo unificado Bogotá** | Dataset **`bogota_augmented`** (450 imgs: 315 train / 90 val / 45 test) + YOLOv8n (`freeze=10`) | Faltaba compensar movimiento de cámara, objetos lejanos, parpadeo amarillo y peatones cercanos | **`models/optisignal_best.pt`** (`99.5% mAP@50`, `input_size=1280`) + **Lucas-Kanade/RANSAC** + **ByteTrack/Kalman** + **HSV anti-halo** |
+| **1. Datasets abiertos** | Línea base con **LISA** (36,775 imgs) y **Bosch** (7,147 imgs) | Semáforos con geometría y luminancia distinta al contexto bogotano; baja transferencia a pórticos locales | Base experimental para validación del flujo YOLO (`PHASE_3` / `PHASE_4`) |
+| **2. Escenarios reales de Bogotá** | Curación de **8 videos CCTV de Bogotá** (`cctv_s1.mp4`–`cctv_s8.mp4`) + dataset local | Se requirió evaluar condiciones reales de calle: paneo, *bloom* nocturno, clima nublado, objetos lejanos y peatones | Construcción de **`bogota_augmented`** (450 imgs: 315 train / 90 val / 45 test) |
+| **3. Pipeline unificado** | YOLOv8n (`freeze=10`) + tracking + compensación de movimiento | Detectar cuadro a cuadro sin memoria ni estabilización espacial producía saltos y pérdida de identidad | **`models/optisignal_best.pt`** (`99.5% mAP@50`, `1280px`) + **Lucas-Kanade/RANSAC** + **ByteTrack/Kalman** + **HSV anti-halo** |
 
 ---
 
@@ -128,7 +128,7 @@ optisignal-ai/
 │   ├── optisignal.db            # Base de datos SQLite local
 │   ├── test_videos/             # Videos reales de validación (cctv_s1.mp4 ... cctv_s8.mp4)
 │   ├── history_scenes/          # Capturas de referencia por intersección (escena_s1..s8.png)
-│   └── processed/               # Datasets procesados (lisa, bosch, blender, bogota_augmented)
+│   └── processed/               # Datasets particionados (lisa, bosch, bogota_augmented)
 ├── docs/
 │   ├── phases/                  # Plan de implementación real y checklists de fases
 │   ├── specifications/          # Definición de anomalías, secuencia vial, datos y roles

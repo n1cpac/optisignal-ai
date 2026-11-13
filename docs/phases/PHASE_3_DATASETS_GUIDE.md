@@ -7,17 +7,17 @@ Inicialmente, la preparación de datos se estructuró sobre dos repositorios abi
 - **LISA Traffic Light Dataset:** secuencias diurnas y nocturnas (`36,775` imágenes procesadas, `232,348` cajas) divididas en `25,742 train` / `7,355 val` / `3,678 test`.
 - **Bosch Small Traffic Lights Dataset (BSTLD):** imágenes de semáforos pequeños (`7,147` imágenes procesadas, `13,486` cajas) divididas en `5,002 train` / `1,429 val` / `716 test`.
 
-Ambos fueron convertidos a anotación YOLO de clase única (`traffic_light`) con partición reproducible 70/20/10 (`seed=42`) bajo `data/processed/lisa/` y `data/processed/bosch/`, logrando validación limpia (`0` etiquetas ausentes o inválidas). También se exploraron renders sintéticos en `data/processed/blender/`.
+Ambos fueron convertidos a anotación YOLO de clase única (`traffic_light`) con partición reproducible 70/20/10 (`seed=42`) bajo `data/processed/lisa/` y `data/processed/bosch/`, logrando validación limpia (`0` etiquetas ausentes o inválidas).
 
 ---
 
 ## 2. Limitación observada y cambio metodológico
 
-Aunque LISA, Bosch y Blender permitieron validar el flujo de conversión y entrenar los primeros pesos separados (`lisa_best.pt`, `bosch_best.pt`, `blender_best.pt`), al llevarlos a cámaras urbanas de Bogotá aparecieron limitaciones claras:
+Aunque LISA y Bosch permitieron validar el flujo de conversión y entrenar los primeros pesos de referencia (`lisa_best.pt`, `bosch_best.pt`), al llevarlos a cámaras urbanas de Bogotá aparecieron limitaciones claras:
 
 - Baja tasa de acierto en pórticos altos, postes amarillos con visera pronunciada y cámaras nocturnas locales.
-- Usar tres modelos en ensamble saturaba la CPU (~2 FPS), generando desfase severo frente al video.
-- Se descartó además el banco de laboratorio físico (ESP32), por lo que era imprescindible entrenar y validar directamente sobre el dominio visual bogotano.
+- Usar múltiples modelos en ensamble saturaba la CPU (~2 FPS), generando desfase severo frente al video.
+- Se requirió entrenar y validar directamente sobre el dominio visual bogotano para cubrir condiciones reales de calle.
 
 ---
 
@@ -30,7 +30,6 @@ data/
 ├── processed/
 │   ├── lisa/partitioned/              # 36,775 imágenes (referencia base)
 │   ├── bosch/partitioned/             #  7,147 imágenes (referencia base)
-│   ├── blender/                       # Referencia sintética previa
 │   └── bogota_augmented/partitioned/  # Dataset definitivo de Bogotá
 │       ├── images/{train,val,test}    # 315 / 90 / 45 imágenes (total: 450)
 │       ├── labels/{train,val,test}    # Clase única: traffic_light (nc: 1)

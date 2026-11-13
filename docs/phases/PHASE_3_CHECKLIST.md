@@ -9,7 +9,7 @@
 
 ## Etapa 2: Evolución hacia datos reales de Bogotá
 
-- [x] Evaluar brecha de dominio de LISA/Bosch y pruebas sintéticas (`data/processed/blender`) frente a semáforos reales de Bogotá.
+- [x] Evaluar brecha de dominio de LISA y Bosch frente a semáforos reales de Bogotá.
 - [x] Construir el dataset especializado **`data/processed/bogota_augmented`** en formato YOLO de 1 clase (`traffic_light`).
 - [x] Particionar **`bogota_augmented`** en 70/20/10 (`seed=42`): **315 `train` / 90 `val` / 45 `test`** (**450 imágenes totales**).
 - [x] Consolidar el banco de validación continua con los **8 videos reales de Bogotá** (`data/test_videos/cctv_s1.mp4` a `cctv_s8.mp4`) y las **8 escenas históricas** (`data/history_scenes/escena_s1.png` a `escena_s8.png`).

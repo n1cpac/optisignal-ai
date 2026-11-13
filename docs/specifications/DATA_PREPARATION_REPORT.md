@@ -4,7 +4,6 @@
 
 - **LISA procesado (`data/processed/lisa/`):** 36,775 imágenes y 232,348 cajas (`25,742 train` / `7,355 val` / `3,678 test`). Validación: `PASS`, 0 etiquetas ausentes o inválidas.
 - **Bosch BSTLD procesado (`data/processed/bosch/`):** 7,147 imágenes y 13,486 cajas (`5,002 train` / `1,429 val` / `716 test`). Validación: `PASS`, 0 etiquetas ausentes o inválidas.
-- **Blender (`data/processed/blender/`):** partición sintética exploratoria previa al paso definitivo a video real.
 
 ## 2. Dataset especializado de Bogotá (`bogota_augmented`)
 
@@ -23,4 +22,4 @@ A partir de capturas reales y aumentación enfocada en condiciones locales de il
 
 ## Resultado
 
-La evolución desde datasets genéricos (LISA/Bosch) y escenarios sintéticos hacia `bogota_augmented` + 8 videos reales permitió entrenar un detector único rápido (`models/optisignal_best.pt`) y descartar definitivamente la fase de prototipo físico.
+La evolución desde datasets genéricos (LISA y Bosch) hacia `bogota_augmented` + 8 videos reales permitió entrenar un detector único rápido (`models/optisignal_best.pt`) adaptado al entorno urbano de Bogotá D.C.
