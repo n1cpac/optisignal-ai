@@ -69,8 +69,37 @@ Video CCTV (15 FPS)
 
 6. **Backend FastAPI, SQLite y Panel Web Angular (`main.py`, `database.py`, `ubicacion.py`)**
    - Georreferencia intersecciones sobre el archivo vectorial oficial de la **Malla Vial de Bogotá** (`malla-vial-bogota.geojson`).
-   - Deduplica alertas automáticas por huella de escena (`scene_signature`) y bloquea concurrencia con `_alert_lock` al consultar o reiniciar alertas (`POST /reportes/reset`).
-   - El panel web Angular muestra el mapa interactivo, streaming MJPEG con cajas numeradas `#1..#N`, lista simplificada de alertas activas (zona, fecha/hora y falla), formulario de verificación con selección del **tipo de falla (`funcionamiento` o `daño`)** y **cabezales afectados**, historial con escena correspondiente a cada cruce y un control discreto de reinicio de base de datos en la esquina inferior izquierda.
+   - Deduplica alertas automáticas por huella de escena (`scene_signature`) y bloquea concurrencia con `_alert_lock` al consultar o reiniciar alertas.
+   - El panel web Angular (rediseño «Propuesta A · Centro de control», ver [Panel de supervisión](#panel-de-supervisión)) muestra el mapa interactivo, streaming MJPEG con cajas numeradas `#1..#N`, lista de alertas activas, formulario de verificación con **tipo de falla (`funcionamiento` o `daño`)** y **cabezales afectados**, e historial con la escena de cada cruce.
+
+---
+
+## Auditoría y reglas de alerta
+
+OptiSignal audita **dos fuentes** por semáforo: lo que **ve** la visión (YOLO + FSM) y lo que **reporta** el sistema eléctrico (`falla` en `CONFIG_PARAMETERS.yaml`).
+
+| Visión (YOLO + FSM) | Sistema eléctrico | Resultado |
+| :--- | :--- | :--- |
+| Sin anomalía | Sin falla | **Sin problemas** (sin alerta) |
+| Anomalía confirmada | Cualquiera | Alerta con el tipo de la visión (`ALL_LIGHTS_OFF`, `AMARILLO_INTERMITENTE`, …) |
+| Sin anomalía | **Reporta falla** | Alerta `ELECTRICAL_FAULT`: el operador decide si ambos sistemas coinciden y cómo proceder |
+
+- **Una alerta por escena:** se repite solo si la escena cambia o, como recordatorio, si la última lleva 30 min sin abrirse en el panel. Si el operador ya reportó ese semáforo hoy, no se alerta de nuevo.
+- **Pestañas:** *Actuales* = alertas del sistema sin atender y de hoy (una fila por semáforo). *Historial* = reportes del operador y alertas sin verificar. Un reporte atiende las alertas pendientes de su semáforo.
+- **Historial acotado:** cada semáforo conserva como máximo **3 entradas** (`database.max_history_per_light`); al superarlo se borra la más antigua, junto con las alertas que ese reporte había verificado.
+- **Direcciones:** los semáforos se identifican por `id`. Si uno cambia de cruce en la configuración, sus alertas pendientes antiguas pasan al historial con la dirección donde ocurrieron.
+
+---
+
+## Panel de supervisión
+
+Aplicación Angular 18 (componentes standalone + signals) con **MapLibre GL**, en `frontend/Semaforos 3/panel-supervision-semaforo/`. Tres columnas: lista de incidencias, mapa y detalle del semáforo.
+
+- **Cabecera:** conteos (monitoreados, operando, con falla) y reloj de Bogotá (`America/Bogota`, GMT-5, independiente de la zona del equipo).
+- **Mapa:** malla vial como capa GeoJSON, filtro *Todos / Con fallas / Sin problemas* y botón de modo claro/oscuro (se recuerda en `localStorage`). Solo cambia el estilo de la capa, el fondo y los marcadores. La malla usa un único color porque el GeoJSON no trae tipo de vía.
+- **Detalle:** estado eléctrico con semáforo gráfico (ciclo rojo-amarillo-verde si está normal; en anomalía replica lo que YOLO ve en el cabezal #1: luz fija, varias luces, apagado o parpadeo), detección YOLO con barra de confianza, cámara en vivo y formulario de reporte (preguntas segmentadas, «Enviar reporte» habilitado al responder).
+- **Diseño:** todos los colores son variables CSS en `src/styles.css` (`:root`); tipografías Space Grotesk, Inter y JetBrains Mono desde Google Fonts.
+- Los separadores entre columnas se arrastran (o se mueven con flechas); por debajo de ~1250 px el detalle baja a una segunda fila y en móvil todo se apila.
 
 ---
 
@@ -105,14 +134,17 @@ El diseño actual es el resultado de tres iteraciones documentadas (base clave p
 
 ```text
 optisignal-ai/
-├── CONFIG_PARAMETERS.yaml       # Parámetros del detector, tracker, HSV, FSM y 8 cámaras
-├── COMO_EJECUTAR.txt            # Guía rápida paso a paso para levantar backend y panel
+├── CONFIG_PARAMETERS.yaml       # Parámetros del detector, tracker, HSV, FSM, alertas y 8 cámaras
 ├── README.md                    # Documentación principal del proyecto
+├── Dockerfile                   # Imagen multietapa (panel Angular + backend) para Railway
+├── .dockerignore
+├── docker-compose.yml           # Placeholder sin contenido
 ├── backend/
+│   ├── Dockerfile               # Placeholder sin contenido (se usa el de la raíz)
 │   ├── requirements.txt
 │   ├── app/
-│   │   ├── main.py              # API REST FastAPI + streaming MJPEG
-│   │   ├── monitor.py           # Orquestación multi-cámara, sincronización de pórticos y alertas
+│   │   ├── main.py              # API REST FastAPI + streaming MJPEG + panel estático
+│   │   ├── monitor.py           # Orquestación multi-cámara, pórticos y alertas (auditoría visión + eléctrico)
 │   │   ├── detector.py          # Inferencia YOLOv8n, filtrado geométrico y NMS
 │   │   ├── tracker.py           # ByteTrack + Filtro de Kalman 6D + NCC + ventana temporal
 │   │   ├── motion.py            # Compensación global de movimiento (Lucas-Kanade + RANSAC)
@@ -120,21 +152,26 @@ optisignal-ai/
 │   │   ├── state_machine.py     # FSM del ciclo vial colombiano y anomalías
 │   │   ├── camera.py            # Lectura de video a 15 FPS con buffer reciente
 │   │   ├── ubicacion.py         # Georreferenciación en Malla Vial de Bogotá
-│   │   ├── database.py          # Persistencia SQLite (alertas automáticas y reportes)
+│   │   ├── database.py          # Persistencia SQLite (alertas, reportes, historial acotado)
 │   │   ├── models.py            # Contratos Pydantic (Semaforo, Cabezal, Reporte, EnvioReporte)
 │   │   └── config.py            # Cargador de CONFIG_PARAMETERS.yaml
-│   └── tests/                   # 83 pruebas unitarias e integrales de pipeline
+│   └── tests/                   # 87 pruebas unitarias e integrales de pipeline
 ├── data/
-│   ├── optisignal.db            # Base de datos SQLite local
+│   ├── optisignal.db            # Base SQLite local (ignorada por git)
+│   ├── backups/                 # Copias de la base (ignorada por git)
 │   ├── test_videos/             # Videos reales de validación (cctv_s1.mp4 ... cctv_s8.mp4)
 │   ├── history_scenes/          # Capturas de referencia por intersección (escena_s1..s8.png)
-│   └── processed/               # Datasets particionados (lisa, bosch, bogota_augmented)
-├── docs/
-│   ├── phases/                  # Plan de implementación real y checklists de fases
-│   ├── specifications/          # Definición de anomalías, secuencia vial, datos y roles
-│   └── paper/                   # Borrador académico LaTeX (main.tex)
+│   └── processed/               # Datasets locales (ignorados por git; no hay en el repo)
+├── docs/                        # Guía de ejecución, fases, especificaciones, paper y diseño
 ├── frontend/
-│   └── Semaforos 3/panel-supervision-semaforo/  # Aplicación web Angular + Leaflet + Malla Vial
+│   └── Semaforos 3/panel-supervision-semaforo/
+│       ├── src/app/
+│       │   ├── core/            # Modelos, ApiService (polling) y PanelStateService (estado compartido)
+│       │   ├── features/        # city-map, report-history, semaforo-detail (+ report-form)
+│       │   └── shared/          # traffic-light, report-item, hora-bogota
+│       ├── src/assets/malla-vial-bogota.geojson
+│       ├── src/styles.css       # Tokens de diseño (variables CSS)
+│       └── tools/aligerar_geojson.py   # Script de un solo uso para generar la malla
 └── models/
     └── optisignal_best.pt       # Pesos del detector unificado YOLOv8n
 ```
@@ -143,7 +180,7 @@ optisignal-ai/
 
 ## Ejecución rápida y pruebas
 
-Consulta [`COMO_EJECUTAR.txt`](COMO_EJECUTAR.txt) para el paso a paso completo. En resumen:
+Pasos resumidos:
 
 1. **Backend (Terminal 1 — raíz del repo):**
    ```powershell
@@ -155,7 +192,9 @@ Consulta [`COMO_EJECUTAR.txt`](COMO_EJECUTAR.txt) para el paso a paso completo. 
    cd "frontend\Semaforos 3\panel-supervision-semaforo"
    npm start
    ```
-3. Abrir `http://localhost:4200` en el navegador.
+3. Abrir `http://localhost:4200` en el navegador (usa `localhost`, no `127.0.0.1`).
+
+El proxy de desarrollo (`proxy.conf.json`) redirige `/semaforos`, `/reportes` y `/camaras` al backend en el puerto 8000.
 
 ### Suite de verificación automatizada
 
@@ -164,15 +203,40 @@ $env:PYTHONPATH="backend"
 pytest backend/tests -v
 ```
 
-Resultado de referencia tras los últimos ajustes de tracking y estabilidad en bucle: **`83 passed`**.
+Resultado de referencia: **`87 passed`**. Algunas pruebas (`test_bogota_pipeline`, integración real) cargan el modelo y los videos de `data/test_videos/`, por lo que tardan más de un minuto en total.
+
+### Compilar el panel y desplegar
+
+```powershell
+cd "frontend\Semaforos 3\panel-supervision-semaforo"
+npm run build        # genera dist/optisignal-panel/browser
+```
+
+Si existe, el backend sirve el panel compilado en `/` (variable `OPTISIGNAL_FRONTEND_DIST`, o `frontend_dist/`, o la ruta de `dist/` por defecto). El `Dockerfile` de la raíz compila el panel y arma la imagen para Railway (CPU, ~1 GB de RAM).
+
+| Variable de entorno | Efecto |
+| :--- | :--- |
+| `OPTISIGNAL_DB_PATH` | Ruta de la base SQLite (por defecto `data/optisignal.db`) |
+| `OPTISIGNAL_FRONTEND_DIST` | Carpeta con el panel compilado |
+| `OPTISIGNAL_LOW_MEM=1` | Reduce hilos y lotes de YOLO para contenedores pequeños |
+| `OPTISIGNAL_YOLO_BATCH` | Tamaño de lote de inferencia |
+
+---
+
+## Notas de desarrollo
+
+- **Configuración única:** todo vive en `CONFIG_PARAMETERS.yaml`. Cada semáforo se declara con `id`, `nombre` (cruce de la Malla Vial), `lat`/`lng` (opcionales), `electrico`, `falla` (estado del sistema eléctrico) y `source` (video). Varias claves heredadas de la plantilla original (`logging`, `monitoring`, `system`, `development`, parte de `api` y `database`) no las lee el código.
+- **Base de datos:** el esquema se migra solo al arrancar (`database.init()` añade las columnas nuevas). Antes de limpiar datos conviene copiar `data/optisignal.db` a `data/backups/`.
+- **Archivos huérfanos conocidos:** `backend/Dockerfile` y `docker-compose.yml` son placeholders de una línea, y `with_random_renders` en `main.py` solo se usa con fuentes que sean carpetas de imágenes, que ya no existen.
 
 ---
 
 ## Documentación técnica relacionada
 
-- **Guía de ejecución:** [`COMO_EJECUTAR.txt`](COMO_EJECUTAR.txt)
+- **Guía de ejecución:** [`docs/COMO_EJECUTAR.txt`](docs/COMO_EJECUTAR.txt)
 - **Plan de implementación y bitácora por fases:** [`docs/phases/PLAN_IMPLEMENTACION.md`](docs/phases/PLAN_IMPLEMENTACION.md)
 - **Datasets y evolución hacia Bogotá:** [`docs/phases/PHASE_3_DATASETS_GUIDE.md`](docs/phases/PHASE_3_DATASETS_GUIDE.md) · [`docs/specifications/DATA_PREPARATION_REPORT.md`](docs/specifications/DATA_PREPARATION_REPORT.md)
 - **Entrenamiento del detector YOLO:** [`docs/phases/PHASE_4_YOLO_TRAINING.md`](docs/phases/PHASE_4_YOLO_TRAINING.md)
 - **Catálogo de anomalías y secuencia vial:** [`docs/specifications/ANOMALIES_DEFINITION.md`](docs/specifications/ANOMALIES_DEFINITION.md) · [`docs/specifications/TRAFFIC_LIGHT_SEQUENCE.md`](docs/specifications/TRAFFIC_LIGHT_SEQUENCE.md)
 - **Distribución de roles:** [`docs/specifications/TEAM_ROLES.md`](docs/specifications/TEAM_ROLES.md)
+- **Especificación de diseño del panel:** `docs/OptiSignal · Especificación de diseño, Propuesta A (Centro de control).pdf`

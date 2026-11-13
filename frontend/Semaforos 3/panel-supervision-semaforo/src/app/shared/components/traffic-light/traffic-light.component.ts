@@ -10,38 +10,39 @@ const CICLO_MS = 2500;
   selector: 'app-traffic-light',
   standalone: true,
   template: `
-    <div class="semaforo" role="img" [attr.aria-label]="'Luz encendida: ' + (encendidas.join(' y ') || 'ninguna')">
+    <div class="semaforo" role="img" [attr.aria-label]="'Luz encendida: ' + (encendidas.join(' y ') || 'ninguna') + (parpadeo ? ' (parpadeando)' : '')">
       <span class="luz rojo" [class.activo]="encendidas.includes('rojo')" [class.parpadeo]="parpadeo === 'rojo'"></span>
       <span class="luz amarillo" [class.activo]="encendidas.includes('amarillo')" [class.parpadeo]="parpadeo === 'amarillo'"></span>
       <span class="luz verde" [class.activo]="encendidas.includes('verde')" [class.parpadeo]="parpadeo === 'verde'"></span>
     </div>
   `,
   styles: [`
+    /* Carcasa de 72px con tres luces de 44px; la apagada es un tono muy oscuro de su color */
     .semaforo {
       display: inline-flex;
       flex-direction: column;
-      gap: 12px;
-      padding: 12px 16px;
-      border: 3px solid #fff;
-      background: #222;
+      gap: 10px;
+      width: 72px;
+      padding: 14px;
+      background: var(--surface-deep);
+      border: 1px solid var(--border);
+      border-radius: var(--r-shell);
     }
     .luz {
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
-      border: 4px solid;
+      background: color-mix(in srgb, var(--c) 18%, var(--surface-deep));
     }
-    .rojo { border-color: #ff4a1c; }
-    .amarillo { border-color: #ffe000; }
-    .verde { border-color: #76c410; }
-    .rojo.activo { background: #ff4a1c; }
-    .amarillo.activo { background: #ffe000; }
-    .verde.activo { background: #76c410; }
+    .rojo { --c: var(--danger); }
+    .amarillo { --c: var(--warning); }
+    .verde { --c: var(--ok); }
+    .luz.activo { background: var(--c); box-shadow: 0 0 18px color-mix(in srgb, var(--c) 70%, transparent); }
     .luz.parpadeo { animation: parpadeo 1s steps(1) infinite; }
-    .rojo.parpadeo { --c: #ff4a1c; }
-    .amarillo.parpadeo { --c: #ffe000; }
-    .verde.parpadeo { --c: #76c410; }
-    @keyframes parpadeo { 0% { background: var(--c); } 50% { background: transparent; } }
+    @keyframes parpadeo {
+      0% { background: var(--c); box-shadow: 0 0 18px color-mix(in srgb, var(--c) 70%, transparent); }
+      50% { background: color-mix(in srgb, var(--c) 18%, var(--surface-deep)); box-shadow: none; }
+    }
   `]
 })
 export class TrafficLightComponent implements OnChanges, OnDestroy {

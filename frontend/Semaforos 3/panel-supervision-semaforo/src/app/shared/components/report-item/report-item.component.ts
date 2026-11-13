@@ -2,8 +2,10 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { DatePipe } from '@angular/common';
 
 import { Reporte } from '../../../core/models/reporte.model';
+import { ZONA_BOGOTA } from '../../hora-bogota';
 
 const NOMBRES_ANOMALIA: Record<string, string> = {
+  ELECTRICAL_FAULT: 'Falla en el sistema eléctrico',
   AMARILLO_INTERMITENTE: 'Amarillo intermitente en falla',
   ALL_LIGHTS_OFF: 'Semáforo apagado (sin luces)',
   MULTIPLE_LIGHTS_ON: 'Múltiples luces encendidas',
@@ -19,39 +21,69 @@ const NOMBRES_ANOMALIA: Record<string, string> = {
   imports: [DatePipe],
   template: `
     <button type="button" class="item" [class.activo]="seleccionado" [class.nueva]="nueva" (click)="seleccionar.emit()">
-      @if (nueva) {
-        <span class="etiqueta-nueva">● Nueva alerta</span>
-      }
-      <span class="ubicacion">{{ reporte.ubicacion }}</span>
-      <span class="fecha">{{ reporte.fecha | date: 'dd/MM/yyyy HH:mm' }}</span>
-      <span class="nombre-alerta">{{ nombreAlerta }}</span>
+      <span class="icono" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2v.1" /></svg>
+      </span>
+      <span class="contenido">
+        @if (nueva) {
+          <span class="etiqueta-nueva">● Nueva alerta</span>
+        }
+        <span class="fila">
+          <span class="ubicacion">{{ reporte.ubicacion }}</span>
+          <span class="hora">{{ reporte.fecha | date: 'HH:mm' : zona }}</span>
+        </span>
+        <span class="fecha">{{ reporte.fecha | date: 'dd/MM/yyyy' : zona }}</span>
+        <span class="chip">{{ nombreAlerta }}</span>
+      </span>
     </button>
   `,
   styles: [`
+    :host { display: block; margin-bottom: var(--sp-2); }
     .item {
       display: flex;
-      flex-direction: column;
-      gap: 3px;
+      align-items: flex-start;
+      gap: var(--sp-3);
       width: 100%;
-      padding: 10px 12px;
-      border: 0;
-      border-left: 4px solid transparent;
-      border-bottom: 1px solid #444;
+      padding: var(--sp-3);
+      border: 1px solid transparent;
+      border-radius: var(--r-control);
       background: transparent;
-      color: #fff;
+      color: var(--text);
       text-align: left;
       font: inherit;
       cursor: pointer;
     }
-    .item:hover { background: #2f2f2f; }
-    .item.activo { background: #1d3a6e; border-left-color: #1e6fff; }
-    .item.nueva { border-left-color: #ffd54f; animation: destello 1.2s ease-in-out 3; }
-    @keyframes destello { 50% { background: #5a4a12; } }
-    @media (prefers-reduced-motion: reduce) { .item.nueva { animation: none; background: #3d3412; } }
-    .etiqueta-nueva { color: #ffd54f; font-size: 12px; font-weight: 700; }
+    .item:hover { background: color-mix(in srgb, var(--border) 50%, transparent); }
+    .item.activo { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+    .item.nueva { border-color: var(--warning); animation: destello 1.2s ease-in-out 3; }
+    @keyframes destello { 50% { background: color-mix(in srgb, var(--warning) 18%, transparent); } }
+    @media (prefers-reduced-motion: reduce) { .item.nueva { animation: none; background: color-mix(in srgb, var(--warning) 12%, transparent); } }
+    .icono {
+      display: inline-flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: var(--r-control);
+      background: color-mix(in srgb, var(--danger) 12%, transparent);
+    }
+    .icono path { fill: none; stroke: var(--danger); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .contenido { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
+    .fila { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-2); }
     .ubicacion { font-weight: 600; font-size: 14px; }
-    .fecha { font-size: 12px; color: #aaa; }
-    .nombre-alerta { font-size: 13px; color: #e2e8f0; }
+    .hora { flex: none; font-family: var(--font-mono); font-size: 12px; color: var(--text); }
+    .fecha { font-size: 12px; color: var(--text-muted); }
+    .chip {
+      align-self: flex-start;
+      padding: 2px 8px;
+      border-radius: var(--r-chip);
+      background: var(--chip-bg);
+      color: var(--warning);
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .etiqueta-nueva { color: var(--warning); font-size: 12px; font-weight: 600; }
   `]
 })
 export class ReportItemComponent {
@@ -62,6 +94,8 @@ export class ReportItemComponent {
   /** Llego una alerta nueva de este semaforo y aun no se abre: se resalta y sube al principio. */
   @Input() nueva = false;
   @Output() seleccionar = new EventEmitter<void>();
+
+  protected readonly zona = ZONA_BOGOTA;
 
   protected get nombreAlerta(): string {
     const desc = this.reporte.descripcion ?? '';

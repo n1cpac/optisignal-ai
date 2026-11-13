@@ -1,4 +1,95 @@
-/* Estilos globales minimos. El diseno visual se afina despues. */
+/* Propuesta A · Centro de control. Los colores viven solo aqui: los componentes usan estas variables. */
+:root {
+  /* Interfaz */
+  --bg: #0b1220;
+  --bg-header: #0e1628;
+  --surface: #111a2e;
+  --surface-deep: #05090f;
+  --border: #1e2a44;
+  --text: #e6ecf5;
+  --text-muted: #8a9bb8;
+  --accent: #38bdf8;
+  --on-accent: #06111f;
+  --danger: #f87171;
+  --ok: #4ade80;
+  --warning: #fbbf24;
+  --chip-bg: #1a2440;
+
+  /* Mapa: estilo de la capa GeoJSON, fondo del contenedor y marcadores segun el modo */
+  --mapa-oscuro-fondo: #0b1220;
+  --mapa-oscuro-via: #4a5c80;
+  --mapa-oscuro-via-principal: #6478a0;
+  --mapa-oscuro-borde: #0b1220;
+  --mapa-oscuro-falla: #f87171;
+  --mapa-oscuro-ok: #4ade80;
+  --mapa-oscuro-seleccion: #38bdf8;
+  --mapa-claro-fondo: #ffffff;
+  --mapa-claro-via: #8e96a3; /* la spec decia #c4c9d2: casi no contrastaba con el fondo blanco */
+  --mapa-claro-via-principal: #6b7482;
+  --mapa-claro-borde: #ffffff;
+  --mapa-claro-falla: #e5484d;
+  --mapa-claro-ok: #22a35a;
+  --mapa-claro-seleccion: #0284c7;
+
+  /* Tipografia */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+
+  /* Espaciado y radios */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --r-chip: 4px;
+  --r-control: 8px;
+  --r-panel: 12px;
+  --r-shell: 16px;
+  --r-pill: 999px;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; font-family: system-ui, "Segoe UI", sans-serif; }
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
 app-root { display: block; height: 100%; }
+button, input, textarea { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Etiqueta flotante del semaforo seleccionado (MapLibre la crea fuera de los componentes) */
+.etiqueta-semaforo .maplibregl-popup-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-control);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  box-shadow: none;
+  pointer-events: none;
+}
+.etiqueta-semaforo .maplibregl-popup-tip { display: none; }
+.etiqueta-semaforo strong { font-weight: 600; }
+.etiqueta-semaforo .falla { color: var(--danger); font-weight: 500; }
+.etiqueta-semaforo .ok { color: var(--ok); font-weight: 500; }
+
+/* Atribucion del mapa */
+.maplibregl-ctrl-attrib.maplibregl-compact, .maplibregl-ctrl-attrib {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.maplibregl-ctrl-attrib a { color: inherit; }
+.mapa-claro .maplibregl-ctrl-attrib {
+  background: color-mix(in srgb, var(--mapa-claro-fondo) 85%, transparent);
+  color: var(--bg);
+}

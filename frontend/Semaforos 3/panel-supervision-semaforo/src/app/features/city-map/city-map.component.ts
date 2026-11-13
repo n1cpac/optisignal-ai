@@ -2,9 +2,11 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  HostBinding,
   NgZone,
   OnDestroy,
   ViewChild,
+  computed,
   effect,
   inject,
   signal,
@@ -12,10 +14,11 @@ import {
 } from '@angular/core';
 import {
   AttributionControl,
+  FilterSpecification,
   GeoJSONSource,
   Map as MaplibreMap,
   MapLayerMouseEvent,
-  NavigationControl
+  Popup
 } from 'maplibre-gl';
 import type { FeatureCollection, Point } from 'geojson';
 
@@ -23,9 +26,35 @@ import { PanelStateService } from '../../core/services/panel-state.service';
 import { Semaforo } from '../../core/models/semaforo.model';
 
 const LIMITES_BOGOTA: [[number, number], [number, number]] = [[-74.25, 4.45], [-74.0, 4.84]];
-const COLOR_NORMAL = '#76c410';
-const COLOR_FALLA = '#e53935';
-const COLOR_SELECCION = '#1e6fff';
+const CLAVE_MODO = 'optisignal.modoMapa';
+
+type Filtro = 'todos' | 'fallas' | 'ok';
+type ModoMapa = 'oscuro' | 'claro';
+
+const ES_FALLA: FilterSpecification = ['==', ['get', 'estadoOperativo'], 'anomalia'];
+const NINGUNO: FilterSpecification = ['==', ['get', 'estadoOperativo'], ''];
+
+function modoGuardado(): ModoMapa {
+  try {
+    return localStorage.getItem(CLAVE_MODO) === 'claro' ? 'claro' : 'oscuro';
+  } catch {
+    return 'oscuro'; // almacenamiento bloqueado o no disponible
+  }
+}
+
+/** MapLibre no entiende variables CSS: se leen del :root para que los colores sigan viviendo en styles.css. */
+function paleta(modo: ModoMapa) {
+  const estilos = getComputedStyle(document.documentElement);
+  const token = (nombre: string) => estilos.getPropertyValue(`--mapa-${modo}-${nombre}`).trim();
+  return {
+    fondo: token('fondo'),
+    via: token('via'),
+    borde: token('borde'),
+    falla: token('falla'),
+    ok: token('ok'),
+    seleccion: token('seleccion')
+  };
+}
 
 @Component({
   selector: 'app-city-map',
@@ -34,31 +63,129 @@ const COLOR_SELECCION = '#1e6fff';
     <div #contenedor class="mapa"></div>
 
     @if (cargandoMalla()) {
-      <div class="cargando">Cargando malla vial...</div>
+      <div class="cargando" role="status">Cargando malla vial...</div>
     }
 
-    <div class="resumen">
-      <strong>Semáforos monitoreados: {{ state.resumen().total }}</strong>
-      <span><i class="punto normal"></i>Activos sin problemas: {{ state.resumen().activos }}</span>
-      <span><i class="punto falla"></i>Con fallas: {{ state.resumen().conFallas }}</span>
+    <div class="filtro" role="group" aria-label="Filtrar semáforos">
+      @for (op of opciones(); track op.valor) {
+        <button type="button" [class.activo]="filtro() === op.valor" [attr.aria-pressed]="filtro() === op.valor" (click)="filtro.set(op.valor)">
+          <i class="punto" [class]="op.valor"></i>
+          {{ op.texto }}
+          <span class="conteo">({{ op.cantidad }})</span>
+        </button>
+      }
+    </div>
+
+    <div class="controles">
+      <button
+        type="button"
+        class="control"
+        [attr.aria-label]="modo() === 'claro' ? 'Cambiar a mapa oscuro' : 'Cambiar a mapa claro'"
+        (click)="alternarModo()"
+      >
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+          <path class="horizonte" d="M3 18h18" />
+          <path class="sol" [class.claro]="modo() === 'claro'" d="M7 18a5 5 0 0 1 10 0z" />
+          @if (modo() === 'claro') {
+            <g class="rayos">
+              <path d="M19.2 15.1l2.5-.7M16.6 11.1l1.6-2M12 9.5V7M7.4 11.1l-1.6-2M4.8 15.1l-2.5-.7" />
+            </g>
+          }
+        </svg>
+      </button>
+      <div class="zoom">
+        <button type="button" class="control" aria-label="Acercar" (click)="mapa?.zoomIn()">+</button>
+        <button type="button" class="control" aria-label="Alejar" (click)="mapa?.zoomOut()">−</button>
+      </div>
     </div>
   `,
   styles: [`
-    :host { display: block; position: relative; width: 100%; height: 100%; }
-    .mapa { position: absolute; inset: 0; }
-    .resumen, .cargando {
+    :host {
+      --mapa-fondo: var(--mapa-oscuro-fondo);
+      display: block;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: var(--mapa-fondo);
+    }
+    :host(.mapa-claro) { --mapa-fondo: var(--mapa-claro-fondo); }
+    .mapa { position: absolute; inset: 0; background: var(--mapa-fondo); }
+    .cargando {
       position: absolute;
       z-index: 1;
-      background: #fff;
-      border: 2px solid #222;
+      left: 12px;
+      bottom: 28px;
       padding: 8px 12px;
-      font-size: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      color: var(--text-muted);
+      font-size: 13px;
     }
-    .resumen { left: 12px; bottom: 28px; display: flex; flex-direction: column; gap: 3px; }
-    .cargando { left: 12px; top: 12px; }
-    .punto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
-    .punto.normal { background: ${COLOR_NORMAL}; }
-    .punto.falla { background: ${COLOR_FALLA}; }
+
+    .filtro, .controles { position: absolute; z-index: 1; top: 12px; }
+    .filtro {
+      left: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      max-width: calc(100% - 132px);
+      padding: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-panel);
+    }
+    .filtro button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: var(--r-control);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .filtro button:hover { background: color-mix(in srgb, var(--border) 50%, transparent); }
+    .filtro button.activo {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+    }
+    .punto { width: 8px; height: 8px; border-radius: 50%; }
+    .punto.todos { background: var(--accent); }
+    .punto.fallas { background: var(--danger); }
+    .punto.ok { background: var(--ok); }
+    .conteo { font-family: var(--font-mono); font-size: 12px; }
+
+    .controles { right: 12px; display: flex; align-items: flex-start; gap: 8px; }
+    .zoom { display: flex; flex-direction: column; gap: 4px; }
+    .control {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .control:hover { border-color: var(--accent); }
+    .horizonte, .sol, .rayos path { fill: none; stroke: var(--text-muted); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .sol.claro, .rayos path { stroke: var(--warning); }
+    .sol.claro { fill: var(--warning); }
+
+    @media (max-width: 520px) {
+      .filtro button { padding: 0 8px; }
+    }
   `]
 })
 export class CityMapComponent implements AfterViewInit, OnDestroy {
@@ -68,10 +195,31 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
   @ViewChild('contenedor', { static: true }) contenedor!: ElementRef<HTMLDivElement>;
 
   protected cargandoMalla = signal(true);
+  protected filtro = signal<Filtro>('todos');
+  protected modo = signal<ModoMapa>(modoGuardado());
+  protected opciones = computed(() => {
+    const r = this.state.resumen();
+    return [
+      { valor: 'todos' as Filtro, texto: 'Todos', cantidad: r.total },
+      { valor: 'fallas' as Filtro, texto: 'Con fallas', cantidad: r.conFallas },
+      { valor: 'ok' as Filtro, texto: 'Sin problemas', cantidad: r.activos }
+    ];
+  });
+
+  @HostBinding('class.mapa-claro') protected get esClaro(): boolean {
+    return this.modo() === 'claro';
+  }
+
   private mapaListo = signal(false);
-  private mapa?: MaplibreMap;
+  protected mapa?: MaplibreMap;
+  private etiqueta?: Popup;
   private redimension?: ResizeObserver;
   private ultimaFirmaSemaforos = '';
+  /** Cambia solo cuando cambia el semaforo seleccionado o su estado: evita rehacer la etiqueta en cada consulta. */
+  private claveEtiqueta = computed(() => {
+    const s = this.state.seleccionado();
+    return s ? `${s.id}|${s.nombre}|${s.estadoOperativo}|${s.lng}|${s.lat}` : '';
+  });
 
   constructor() {
     // Actualiza los puntos de los semaforos solo cuando cambian sus coordenadas o estado operativo
@@ -86,7 +234,7 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
       });
     });
 
-    // Dibuja el circulo azul y centra el mapa cuando cambia el semaforo seleccionado.
+    // Dibuja el anillo de seleccion y centra el mapa cuando cambia el semaforo seleccionado.
     // Solo depende del id: las coordenadas no cambian con cada consulta.
     effect(() => {
       const id = this.state.seleccionadoId();
@@ -105,6 +253,33 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
         }
       });
     });
+
+    // Etiqueta flotante sobre el seleccionado: direccion y estado
+    effect(() => {
+      this.claveEtiqueta();
+      if (!this.mapaListo() || !this.mapa) return;
+      const sel = untracked(() => this.state.seleccionado());
+      this.zone.runOutsideAngular(() => this.mostrarEtiqueta(sel));
+    });
+
+    // El filtro solo oculta o muestra marcadores; no toca la lista de incidencias ni el panel de detalle
+    effect(() => {
+      const filtro = this.filtro();
+      if (!this.mapaListo() || !this.mapa) return;
+      const filtroMarcadores: FilterSpecification | null =
+        filtro === 'fallas' ? ES_FALLA : filtro === 'ok' ? ['!=', ['get', 'estadoOperativo'], 'anomalia'] : null;
+      this.zone.runOutsideAngular(() => {
+        this.mapa!.setFilter('semaforos', filtroMarcadores);
+        this.mapa!.setFilter('semaforos-halo', filtro === 'ok' ? NINGUNO : ES_FALLA);
+      });
+    });
+
+    // Modo claro u oscuro: solo estilo de la capa GeoJSON, fondo y marcadores
+    effect(() => {
+      const modo = this.modo();
+      if (!this.mapaListo() || !this.mapa) return;
+      this.zone.runOutsideAngular(() => this.aplicarModo(this.mapa!, modo));
+    });
   }
 
   ngAfterViewInit(): void {
@@ -115,16 +290,15 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
         style: {
           version: 8,
           sources: {},
-          layers: [{ id: 'fondo', type: 'background', paint: { 'background-color': '#ffffff' } }]
+          layers: [{ id: 'fondo', type: 'background', paint: { 'background-color': paleta(this.modo()).fondo } }]
         },
         bounds: LIMITES_BOGOTA,
         fitBoundsOptions: { padding: 20 },
         attributionControl: false
       });
 
-      mapa.addControl(new NavigationControl({ showCompass: false }), 'top-right');
       mapa.addControl(
-        new AttributionControl({ customAttribution: 'Malla Vial Integral de Bogotá D.C.' }),
+        new AttributionControl({ compact: false, customAttribution: 'Malla Vial Integral de Bogotá D.C.' }),
         'bottom-right'
       );
 
@@ -145,12 +319,25 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.redimension?.disconnect();
+    this.etiqueta?.remove();
     this.mapa?.remove();
   }
 
+  protected alternarModo(): void {
+    const nuevo: ModoMapa = this.modo() === 'claro' ? 'oscuro' : 'claro';
+    this.modo.set(nuevo);
+    try {
+      localStorage.setItem(CLAVE_MODO, nuevo);
+    } catch {
+      // sin almacenamiento: el modo vale solo para esta sesion
+    }
+  }
+
   private configurarCapas(mapa: MaplibreMap): void {
-    // 1. Malla vial en un solo gris: resaltar avenidas por su tipo dejaba cortes, porque los
-    //    datos no traen tipo en cruces, puentes y glorietas
+    const c = paleta(this.modo());
+
+    // 1. Malla vial en un solo color: el GeoJSON solo trae 'etiqueta' (ej. "AC 1"), sin tipo de via,
+    //    y resaltar avenidas por su nombre dejaba cortes en cruces, puentes y glorietas
     mapa.addSource('malla', {
       type: 'geojson',
       data: new URL('assets/malla-vial-bogota.geojson', document.baseURI).href,
@@ -162,37 +349,43 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
       id: 'malla-vial',
       type: 'line',
       source: 'malla',
-      paint: {
-        'line-color': '#7a7a7a',
-        'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.3, 14, 0.8, 18, 3]
-      }
+      paint: { 'line-color': c.via, 'line-width': 1, 'line-opacity': 0.9 }
     });
 
-    // 2. Semaforos: verde si esta normal, rojo si presenta falla
+    // 2. Semaforos: sin problemas (12px) o con falla (16px y halo de 6px al 25 %)
     mapa.addSource('semaforos', { type: 'geojson', data: this.aGeoJson(this.state.semaforos()) });
     mapa.addLayer({
-      id: 'semaforos',
+      id: 'semaforos-halo',
       type: 'circle',
       source: 'semaforos',
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 5, 14, 9],
-        'circle-color': ['match', ['get', 'estadoOperativo'], 'anomalia', COLOR_FALLA, COLOR_NORMAL],
-        'circle-stroke-color': '#ffffff',
-        'circle-stroke-width': 1.5
-      }
+      filter: ES_FALLA,
+      paint: { 'circle-radius': 14, 'circle-color': c.falla, 'circle-opacity': 0.25 }
     });
 
-    // 3. Circulo azul sobre el semaforo seleccionado
+    // 3. Anillo de seleccion de 56px bajo el punto, para que el punto quede al centro
     mapa.addSource('seleccion', { type: 'geojson', data: this.aGeoJson([]) });
     mapa.addLayer({
       id: 'seleccion',
       type: 'circle',
       source: 'seleccion',
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 12, 14, 18],
-        'circle-opacity': 0,
-        'circle-stroke-color': COLOR_SELECCION,
-        'circle-stroke-width': 3
+        'circle-radius': 28,
+        'circle-color': c.seleccion,
+        'circle-opacity': 0.12,
+        'circle-stroke-color': c.seleccion,
+        'circle-stroke-width': 2,
+        'circle-stroke-opacity': 1
+      }
+    });
+    mapa.addLayer({
+      id: 'semaforos',
+      type: 'circle',
+      source: 'semaforos',
+      paint: {
+        'circle-radius': ['match', ['get', 'estadoOperativo'], 'anomalia', 8, 6],
+        'circle-color': ['match', ['get', 'estadoOperativo'], 'anomalia', c.falla, c.ok],
+        'circle-stroke-color': c.borde,
+        'circle-stroke-width': 2
       }
     });
 
@@ -205,6 +398,36 @@ export class CityMapComponent implements AfterViewInit, OnDestroy {
     mapa.on('mouseleave', 'semaforos', () => (mapa.getCanvas().style.cursor = ''));
 
     this.zone.run(() => this.mapaListo.set(true));
+  }
+
+  private aplicarModo(mapa: MaplibreMap, modo: ModoMapa): void {
+    const c = paleta(modo);
+    mapa.setPaintProperty('fondo', 'background-color', c.fondo);
+    mapa.setPaintProperty('malla-vial', 'line-color', c.via);
+    mapa.setPaintProperty('malla-vial', 'line-opacity', modo === 'oscuro' ? 0.9 : 1);
+    mapa.setPaintProperty('semaforos-halo', 'circle-color', c.falla);
+    mapa.setPaintProperty('seleccion', 'circle-color', c.seleccion);
+    mapa.setPaintProperty('seleccion', 'circle-stroke-color', c.seleccion);
+    mapa.setPaintProperty('semaforos', 'circle-color', ['match', ['get', 'estadoOperativo'], 'anomalia', c.falla, c.ok]);
+    mapa.setPaintProperty('semaforos', 'circle-stroke-color', c.borde);
+  }
+
+  private mostrarEtiqueta(sel: Semaforo | null | undefined): void {
+    this.etiqueta?.remove();
+    this.etiqueta = undefined;
+    if (!sel || !this.mapa) return;
+    const falla = sel.estadoOperativo === 'anomalia';
+    const contenido = document.createElement('div');
+    const direccion = document.createElement('strong');
+    direccion.textContent = sel.nombre;
+    const estado = document.createElement('span');
+    estado.className = falla ? 'falla' : 'ok';
+    estado.textContent = falla ? 'Anomalía eléctrica' : 'Sin problemas';
+    contenido.append(direccion, estado);
+    this.etiqueta = new Popup({ closeButton: false, closeOnClick: false, anchor: 'bottom', offset: 36, className: 'etiqueta-semaforo' })
+      .setLngLat([sel.lng, sel.lat])
+      .setDOMContent(contenido)
+      .addTo(this.mapa);
   }
 
   private aGeoJson(lista: Semaforo[]): FeatureCollection<Point> {

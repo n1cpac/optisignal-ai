@@ -13,6 +13,7 @@ import { PanelStateService } from './core/services/panel-state.service';
 import { ReportHistoryComponent } from './features/report-history/report-history.component';
 import { CityMapComponent } from './features/city-map/city-map.component';
 import { SemaforoDetailComponent } from './features/semaforo-detail/semaforo-detail.component';
+import { horaBogota } from './shared/hora-bogota';
 
 type Lado = 'izq' | 'der';
 
@@ -23,8 +24,8 @@ const LIMITES: Record<Lado, { min: number; maxFraccion: number }> = {
 };
 /** Sin arrastrar, los paneles siguen el tamano de la ventana. */
 const POR_DEFECTO: Record<Lado, string> = {
-  izq: 'clamp(200px, 18vw, 320px)',
-  der: 'clamp(280px, 24vw, 460px)'
+  izq: 'clamp(280px, 20.8vw, 320px)', // ~300px a 1440px
+  der: 'clamp(360px, 26.4vw, 420px)' // ~380px a 1440px
 };
 const PASO_TECLADO = 24;
 
@@ -34,7 +35,30 @@ const PASO_TECLADO = 24;
   imports: [ReportHistoryComponent, CityMapComponent, SemaforoDetailComponent],
   template: `
     <div class="app">
-      <header class="encabezado">OPTISIGNAL</header>
+      <header class="encabezado">
+        <div class="marca">
+          <svg class="icono-marca" viewBox="0 0 24 32" width="22" height="30" aria-hidden="true">
+            <rect class="carcasa" x="3" y="1.5" width="18" height="29" rx="5" />
+            <circle class="luz rojo" cx="12" cy="8.5" r="3" />
+            <circle class="luz amarillo" cx="12" cy="16" r="3" />
+            <circle class="luz verde" cx="12" cy="23.5" r="3" />
+          </svg>
+          <span class="nombre">OPTISIGNAL</span>
+          <span class="subtitulo">Centro de control semafórico</span>
+        </div>
+        <div class="datos">
+          <ul class="pildoras" aria-label="Resumen de semáforos">
+            <li class="pildora"><i class="punto neutro"></i><span class="cifra">{{ state.resumen().total }}</span> monitoreados</li>
+            <li class="pildora ok"><i class="punto"></i><span class="cifra">{{ state.resumen().activos }}</span> operando</li>
+            <li class="pildora falla"><i class="punto"></i><span class="cifra">{{ state.resumen().conFallas }}</span> con falla</li>
+          </ul>
+          <div class="reloj">
+            <span class="ciudad">BOGOTÁ D.C. ·</span>
+            <time class="hora">{{ hora() }}</time>
+            <span class="gmt">GMT-5</span>
+          </div>
+        </div>
+      </header>
 
       <div
         #cuerpo
@@ -45,7 +69,7 @@ const PASO_TECLADO = 24;
       >
         <aside #izq class="izquierda"><app-report-history /></aside>
         <div
-          class="separador"
+          class="separador s1"
           role="separator"
           tabindex="0"
           aria-orientation="vertical"
@@ -62,7 +86,7 @@ const PASO_TECLADO = 24;
         ></div>
         <main class="centro"><app-city-map /></main>
         <div
-          class="separador"
+          class="separador s2"
           role="separator"
           tabindex="0"
           aria-orientation="vertical"
@@ -89,32 +113,102 @@ const PASO_TECLADO = 24;
     </div>
   `,
   styles: [`
-    .app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+    .app { display: flex; flex-direction: column; min-height: 100%; }
+
     .encabezado {
-      background: #0047a8;
-      color: #fff;
-      padding: 14px 24px;
-      font-size: 30px;
-      letter-spacing: 0.25em;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sp-2) var(--sp-4);
+      min-height: 60px;
+      padding: 0 var(--sp-5);
+      background: var(--bg-header);
+      border-bottom: 1px solid var(--border);
     }
+    .marca { display: flex; align-items: center; gap: var(--sp-3); }
+    .icono-marca .carcasa { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+    .icono-marca .rojo { fill: var(--danger); }
+    .icono-marca .amarillo { fill: var(--warning); }
+    .icono-marca .verde { fill: var(--ok); }
+    .nombre { font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: 0.24em; }
+    .subtitulo {
+      padding-left: var(--sp-3);
+      border-left: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .datos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); }
+    .pildoras { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: 0; padding: 0; list-style: none; }
+    .pildora {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      background: var(--surface);
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .pildora .cifra { font-family: var(--font-mono); font-weight: 500; }
+    .punto { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .punto.neutro { color: var(--text-muted); }
+    .pildora.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
+    .pildora.falla { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+    .pildora.ok .cifra, .pildora.falla .cifra { color: var(--text); }
+    .reloj { display: flex; align-items: baseline; gap: var(--sp-2); font-family: var(--font-mono); }
+    .ciudad { color: var(--text-muted); font-size: 12px; }
+    .hora { color: var(--text); font-size: 15px; font-weight: 500; }
+    .gmt { padding: 1px 6px; border: 1px solid var(--border); border-radius: var(--r-chip); color: var(--text-muted); font-size: 12px; }
+
+    /* Tres zonas: el mapa absorbe el espacio sobrante. Los separadores de 12px son el hueco entre ellas. */
     .cuerpo {
       display: grid;
-      grid-template-columns: var(--col-izq) 6px minmax(0, 1fr) 6px var(--col-der);
-      min-height: 0;
+      grid-template-columns: var(--col-izq) var(--sp-3) minmax(0, 1fr) var(--sp-3) var(--col-der);
+      grid-template-areas: 'izq s1 centro s2 der';
+      height: calc(100vh - 60px);
+      min-height: 544px;
+      padding: var(--sp-3);
     }
     .cuerpo.arrastrando { cursor: col-resize; user-select: none; }
-    .izquierda, .derecha { background: #222; color: #fff; overflow-y: auto; min-width: 0; }
-    .derecha { padding: 16px; }
-    .centro { position: relative; min-width: 0; background: #fff; }
-    .separador { background: #333; cursor: col-resize; touch-action: none; }
-    .separador:hover, .separador:focus-visible { background: #1e6fff; outline: none; }
-    .arrastrando .separador:active { background: #1e6fff; }
+    .izquierda, .centro, .derecha { min-height: 0; min-width: 0; }
+    .izquierda {
+      grid-area: izq;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: var(--sp-3);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-panel);
+    }
+    .centro {
+      grid-area: centro;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--r-panel);
+    }
+    .derecha { grid-area: der; display: flex; flex-direction: column; gap: var(--sp-3); overflow-y: auto; }
+    .separador { position: relative; cursor: col-resize; touch-action: none; }
+    .separador.s1 { grid-area: s1; }
+    .separador.s2 { grid-area: s2; }
+    .separador::after {
+      content: '';
+      position: absolute;
+      inset: 25% 5px;
+      border-radius: var(--r-pill);
+      background: transparent;
+    }
+    .separador:hover::after, .separador:focus-visible::after, .arrastrando .separador:active::after { background: var(--accent); }
+    .separador:focus-visible { outline: none; }
     .debug-reset {
       position: fixed;
-      left: 4px;
-      bottom: 4px;
-      width: 14px;
-      height: 14px;
+      left: 2px;
+      bottom: 2px;
+      width: 24px;
+      height: 24px;
       padding: 0;
       border: 0;
       border-radius: 50%;
@@ -126,28 +220,42 @@ const PASO_TECLADO = 24;
     }
     .debug-reset:hover, .debug-reset:focus-visible {
       opacity: 1;
-      background: rgba(255, 255, 255, 0.16);
-      outline: none;
+      background: color-mix(in srgb, var(--danger) 45%, transparent);
     }
 
-    /* Pantallas angostas: una sola columna, con el mapa arriba */
-    @media (max-width: 900px) {
-      .app { height: auto; min-height: 100%; }
-      .encabezado { padding: 10px 16px; font-size: 22px; }
+    /* Por debajo de ~1250px el detalle baja a una segunda fila */
+    @media (max-width: 1250px) {
       .cuerpo {
-        grid-template-columns: 1fr;
-        grid-template-areas: 'centro' 'derecha' 'izquierda';
+        grid-template-columns: var(--col-izq) var(--sp-3) minmax(0, 1fr);
+        grid-template-areas: 'izq s1 centro' 'der der der';
+        grid-template-rows: calc(100vh - 84px) auto;
+        row-gap: var(--sp-3);
+        height: auto;
       }
-      .centro { grid-area: centro; height: 60vh; }
-      .derecha { grid-area: derecha; }
-      .izquierda { grid-area: izquierda; }
-      .izquierda, .derecha { overflow-y: visible; }
+      .izquierda, .centro { min-height: 520px; }
+      .s2 { display: none; }
+      .derecha { overflow-y: visible; }
+    }
+
+    /* Movil: lista, mapa y detalle apilados a ancho completo */
+    @media (max-width: 900px) {
+      .encabezado { padding: var(--sp-2) var(--sp-4); }
+      .nombre { font-size: 18px; }
+      .cuerpo {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: 'izq' 'centro' 'der';
+        grid-template-rows: none;
+      }
+      .izquierda { min-height: 0; max-height: 60vh; }
+      .centro { min-height: 0; height: 60vh; }
       .separador { display: none; }
     }
   `]
 })
 export class AppComponent implements AfterViewInit, OnDestroy {
   protected state = inject(PanelStateService);
+  protected hora = signal(horaBogota(Date.now()));
+  private relojId = setInterval(() => this.hora.set(horaBogota(Date.now())), 1000);
   protected readonly limites = LIMITES;
 
   @ViewChild('cuerpo', { static: true }) private cuerpo!: ElementRef<HTMLElement>;
@@ -184,6 +292,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    clearInterval(this.relojId);
     this.observador?.disconnect();
   }
 

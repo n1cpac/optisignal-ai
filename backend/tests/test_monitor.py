@@ -211,3 +211,20 @@ def test_stalled_source_reports_no_signal(tmp_path):
         assert feed.read() is None
     finally:
         feed.stop()
+
+
+def test_an_electrical_fault_alerts_even_if_yolo_sees_everything_fine(alerts):
+    sent, _ = alerts
+    monitor = monitor_with(ConstantFSM(None))
+    monitor.semaforos_config["s1"]["falla"] = True
+    monitor._process("s1", monitor.feeds["s1"], now=0)
+    monitor._process("s1", monitor.feeds["s1"], now=1)  # misma escena: no repite
+    assert sent == ["ELECTRICAL_FAULT"]
+
+
+def test_a_vision_anomaly_keeps_its_own_type_when_the_electrical_system_also_fails(alerts):
+    sent, _ = alerts
+    monitor = monitor_with(ConstantFSM("ALL_LIGHTS_OFF"))
+    monitor.semaforos_config["s1"]["falla"] = True
+    monitor._process("s1", monitor.feeds["s1"], now=0)
+    assert sent == ["ALL_LIGHTS_OFF"]

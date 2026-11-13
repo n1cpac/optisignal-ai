@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 
 import { ApiService } from '../../core/services/api.service';
 import { Destinatario, OpcionesReporte, TipoFalla } from '../../core/models/reporte.model';
+import { ZONA_BOGOTA } from '../../shared/hora-bogota';
 
 type EstadoEnvio = 'inactivo' | 'enviando' | 'enviado' | 'error';
 
@@ -15,89 +16,176 @@ type EstadoEnvio = 'inactivo' | 'enviando' | 'enviado' | 'error';
     <form class="reporte" (ngSubmit)="enviar()">
       <h3>{{ opciones ? 'Reporte verificado' : 'Reporte' }}</h3>
       @if (opciones) {
-        <p class="aviso">Verificado el {{ opciones.fecha | date: 'dd/MM/yyyy HH:mm' }}. Solo lectura.</p>
+        <p class="aviso">Verificado el {{ opciones.fecha | date: 'dd/MM/yyyy HH:mm' : zona }}. Solo lectura.</p>
       }
 
       <!-- Un fieldset deshabilitado bloquea todos los campos de un reporte ya verificado -->
       <fieldset class="campos" [disabled]="!!opciones">
-      <fieldset>
-        <legend>La detección eléctrica, ¿coincide con la imagen?</legend>
-        <label><input type="radio" name="coincide" [value]="true" [(ngModel)]="coincide" /> Coincide</label>
-        <label><input type="radio" name="coincide" [value]="false" [(ngModel)]="coincide" /> No coincide</label>
-      </fieldset>
-
-      <fieldset>
-        <legend>¿Hay un fallo en el semáforo?</legend>
-        <label><input type="radio" name="falla" [value]="true" [(ngModel)]="falla" /> Fallo en el semáforo</label>
-        <label><input type="radio" name="falla" [value]="false" [(ngModel)]="falla" /> No hay fallo</label>
-      </fieldset>
-
-      @if (falla) {
         <fieldset>
-          <legend>Tipo de reporte de falla</legend>
-          <label>
-            <input type="radio" name="tipoFalla" [value]="'funcionamiento'" [(ngModel)]="tipoFalla" />
-            Por funcionamiento (secuencia o intermitencia)
-          </label>
-          <label>
-            <input type="radio" name="tipoFalla" [value]="'dano'" [(ngModel)]="tipoFalla" />
-            Por daño (apagado o daño físico)
-          </label>
-        </fieldset>
-
-        <fieldset>
-          <legend>Semáforos con falla (numeración de izquierda a derecha en cámara)</legend>
-          <div class="semaforos-grid">
-            @for (num of numerosSemaforos; track num) {
-              <label>
-                <input type="checkbox" [name]="'sem_' + num" [(ngModel)]="semaforosSeleccionados[num]" />
-                Semáforo #{{ num }}
-              </label>
-            }
+          <legend>La detección eléctrica, ¿coincide con la imagen?</legend>
+          <div class="segmentado">
+            <label><input type="radio" name="coincide" [value]="true" [(ngModel)]="coincide" /><span>Coincide</span></label>
+            <label><input type="radio" name="coincide" [value]="false" [(ngModel)]="coincide" /><span>No coincide</span></label>
           </div>
         </fieldset>
 
         <fieldset>
-          <legend>Enviar a (opcional)</legend>
-          <label><input type="checkbox" name="transito" [(ngModel)]="destinatarios.transito" /> Policía de tránsito</label>
-          <label><input type="checkbox" name="tecnicos" [(ngModel)]="destinatarios.tecnicos" /> Técnicos de reparación</label>
+          <legend>¿Hay un fallo en el semáforo?</legend>
+          <div class="segmentado">
+            <label><input type="radio" name="falla" [value]="true" [(ngModel)]="falla" /><span>Fallo en el semáforo</span></label>
+            <label><input type="radio" name="falla" [value]="false" [(ngModel)]="falla" /><span>No hay fallo</span></label>
+          </div>
         </fieldset>
-      }
 
-      <textarea
-        name="comentario"
-        rows="4"
-        placeholder="Escribe el reporte..."
-        [(ngModel)]="comentario"
-      ></textarea>
+        @if (falla) {
+          <fieldset>
+            <legend>Tipo de reporte de falla</legend>
+            <div class="segmentado">
+              <label>
+                <input type="radio" name="tipoFalla" [value]="'funcionamiento'" [(ngModel)]="tipoFalla" />
+                <span>Por funcionamiento (secuencia o intermitencia)</span>
+              </label>
+              <label>
+                <input type="radio" name="tipoFalla" [value]="'dano'" [(ngModel)]="tipoFalla" />
+                <span>Por daño (apagado o daño físico)</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Semáforos con falla (numeración de izquierda a derecha en cámara)</legend>
+            <div class="opciones">
+              @for (num of numerosSemaforos; track num) {
+                <label class="casilla">
+                  <input type="checkbox" [name]="'sem_' + num" [(ngModel)]="semaforosSeleccionados[num]" />
+                  <span>Semáforo #{{ num }}</span>
+                </label>
+              }
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Enviar a (opcional)</legend>
+            <div class="opciones">
+              <label class="casilla"><input type="checkbox" name="transito" [(ngModel)]="destinatarios.transito" /><span>Policía de tránsito</span></label>
+              <label class="casilla"><input type="checkbox" name="tecnicos" [(ngModel)]="destinatarios.tecnicos" /><span>Técnicos de reparación</span></label>
+            </div>
+          </fieldset>
+        }
+
+        <label class="observaciones">
+          <span class="etiqueta">Observaciones</span>
+          <textarea name="comentario" rows="4" placeholder="Escribe el reporte..." [(ngModel)]="comentario"></textarea>
+        </label>
       </fieldset>
 
       @if (!opciones) {
-        <button type="submit" [disabled]="!puedeEnviar">Enviar ▶</button>
+        <button type="submit" class="primario" [disabled]="!puedeEnviar">Enviar reporte</button>
       }
 
-      @if (estado === 'enviando') { <p class="aviso">Enviando...</p> }
-      @if (estado === 'enviado') { <p class="aviso">Reporte enviado.</p> }
-      @if (estado === 'error') { <p class="aviso error">No se pudo enviar. Intenta de nuevo.</p> }
+      <div role="status">
+        @if (estado === 'enviando') { <p class="aviso">Enviando...</p> }
+        @if (estado === 'enviado') { <p class="aviso ok">Reporte enviado.</p> }
+        @if (estado === 'error') { <p class="aviso error">No se pudo enviar. Intenta de nuevo.</p> }
+      </div>
     </form>
   `,
   styles: [`
-    .reporte { display: flex; flex-direction: column; gap: 10px; border: 2px solid #fff; padding: 12px; }
-    h3 { margin: 0; font-size: 20px; }
-    fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-    .semaforos-grid { display: flex; flex-wrap: wrap; gap: 10px 16px; }
-    .campos { gap: 10px; }
-    .campos:disabled textarea { color: #ddd; border-color: #555; }
-    /* Deshabilitados, los radios quedan grises: se resalta la opcion marcada para que se lea */
-    .campos:disabled label { color: #777; }
-    .campos:disabled label:has(input:checked) { color: #fff; font-weight: 700; }
-    .campos:disabled label:has(input:checked)::after { content: ' ✓'; color: #76c410; }
-    legend { padding: 0; margin-bottom: 4px; font-size: 13px; color: #ccc; }
-    textarea { width: 100%; resize: vertical; padding: 8px; font: inherit; background: #222; color: #fff; border: 1px solid #777; }
-    button { align-self: flex-end; padding: 8px 16px; font: inherit; border: 2px solid #1e6fff; background: #222; color: #fff; cursor: pointer; }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
-    .aviso { margin: 0; font-size: 13px; }
-    .aviso.error { color: #ff7a7a; }
+    .reporte {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-3);
+      padding: var(--sp-4);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-panel);
+    }
+    h3 { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 600; }
+    fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+    .campos { gap: var(--sp-4); }
+    legend { padding: 0; margin-bottom: var(--sp-2); font-size: 13px; font-weight: 500; color: var(--text-muted); }
+
+    /* Radios reales, ocultos a la vista pero con foco y teclado */
+    .segmentado input, .casilla input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      opacity: 0;
+    }
+    .segmentado { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-1); padding: var(--sp-1); background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-control); }
+    .segmentado label { position: relative; display: flex; }
+    .segmentado span {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 4px var(--sp-2);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      text-align: center;
+      cursor: pointer;
+    }
+    .segmentado label:hover span { color: var(--text); }
+    .segmentado input:checked + span { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+    .segmentado input:focus-visible + span, .casilla input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .opciones { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+    .casilla { position: relative; display: inline-flex; }
+    .casilla span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 0 var(--sp-3);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      background: var(--bg);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .casilla input:checked + span { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+    .casilla input:checked + span::before { content: '✓ '; white-space: pre; }
+
+    /* Reporte ya verificado: se resalta la opcion marcada para que se lea */
+    .campos:disabled .segmentado span, .campos:disabled .casilla span { cursor: default; opacity: 0.6; }
+    .campos:disabled .segmentado input:checked + span, .campos:disabled .casilla input:checked + span { opacity: 1; }
+
+    .observaciones { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .etiqueta { font-size: 13px; font-weight: 500; color: var(--text-muted); }
+    textarea {
+      width: 100%;
+      min-height: 88px;
+      resize: vertical;
+      padding: var(--sp-2) var(--sp-3);
+      border: 1px solid var(--border);
+      border-radius: var(--r-control);
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+    }
+    textarea::placeholder { color: var(--text-muted); }
+    .primario {
+      width: 100%;
+      min-height: 44px;
+      border: 0;
+      border-radius: var(--r-control);
+      background: var(--accent);
+      color: var(--on-accent);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .primario:disabled { opacity: 0.5; cursor: not-allowed; }
+    .aviso { margin: 0; font-size: 13px; color: var(--text-muted); }
+    .aviso.ok { color: var(--ok); }
+    .aviso.error { color: var(--danger); }
   `]
 })
 export class ReportFormComponent implements OnChanges {
@@ -111,6 +199,7 @@ export class ReportFormComponent implements OnChanges {
   @Output() enviado = new EventEmitter<string>();
 
   private api = inject(ApiService);
+  protected readonly zona = ZONA_BOGOTA;
 
   coincide: boolean | null = null;
   falla: boolean | null = null;

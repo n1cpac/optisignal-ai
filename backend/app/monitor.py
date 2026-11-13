@@ -407,6 +407,7 @@ def analyze(
     )
 
 
+ELECTRICAL_FAULT = "ELECTRICAL_FAULT"  # el sistema electrico reporta falla (falla: true en la configuracion)
 ALERTS_CONFIG = SETTINGS["anomaly_detection"]
 NEW_SCENE_THRESHOLD = ALERTS_CONFIG["alert_new_scene_threshold"]
 REMINDER_SECONDS = ALERTS_CONFIG["alert_reminder_minutes"] * 60
@@ -482,19 +483,30 @@ class Monitor:
         now: float,
     ) -> None:
         self.results[semaforo_id] = result
-        anomalia = result.anomalia_confirmada
+        with self._alert_lock:
+            self._emit_alert(semaforo_id, result, frame, now)
+
+    def _emit_alert(self, semaforo_id: str, result: VisionResult, frame: Optional[np.ndarray], now: float) -> None:
+        """Auditoria entre los dos sistemas: alerta si la vision confirma una anomalia o si el sistema
+        electrico reporta falla, aunque YOLO vea todo bien (el operador decide si coinciden). Con _alert_lock."""
+        config = self.semaforos_config[semaforo_id]
+        electrica = bool(config.get("falla"))
+        anomalia = result.anomalia_confirmada or (ELECTRICAL_FAULT if electrica else None)
         if anomalia is None or frame is None:  # sin imagen no se puede comparar la escena
             return
         scene = scene_signature(frame)
-        with self._alert_lock:
-            if self._should_alert(semaforo_id, scene, now):
-                alerta_id = database.insert_alerta_sistema(
-                    semaforo_id=semaforo_id,
-                    ubicacion=self.semaforos_config[semaforo_id].get("nombre", semaforo_id),
-                    tipo_anomalia=anomalia,
-                    detalle=f"Estado visual: {result.estado_visual}. Luces: {', '.join(result.luces) or 'ninguna'}",
-                )
-                self._last_alert[semaforo_id] = SentAlert(alerta_id, now, scene)
+        if not self._should_alert(semaforo_id, scene, now):
+            return
+        detalle = f"Estado visual: {result.estado_visual}. Luces: {', '.join(result.luces) or 'ninguna'}"
+        if electrica:
+            detalle += f". Sistema electrico reporta falla (estado electrico: {config.get('electrico', 'desconocido')})"
+        alerta_id = database.insert_alerta_sistema(
+            semaforo_id=semaforo_id,
+            ubicacion=config.get("nombre", semaforo_id),
+            tipo_anomalia=anomalia,
+            detalle=detalle,
+        )
+        self._last_alert[semaforo_id] = SentAlert(alerta_id, now, scene)
 
     def _advance_idle_cameras(self, processed_ids: set[str]) -> None:
         """Actualiza con step_fast los cuadros intermedios de las camaras fuera del lote YOLO."""
@@ -682,16 +694,4 @@ class Monitor:
         with self._alert_lock:
             self._last_alert.clear()
             for semaforo_id, result in list(self.results.items()):
-                frame = result.source_frame
-                anomalia = result.anomalia_confirmada
-                if anomalia is None or frame is None:
-                    continue
-                scene = scene_signature(frame)
-                if self._should_alert(semaforo_id, scene, now):
-                    alerta_id = database.insert_alerta_sistema(
-                        semaforo_id=semaforo_id,
-                        ubicacion=self.semaforos_config[semaforo_id].get("nombre", semaforo_id),
-                        tipo_anomalia=anomalia,
-                        detalle=f"Estado visual: {result.estado_visual}. Luces: {', '.join(result.luces) or 'ninguna'}",
-                    )
-                    self._last_alert[semaforo_id] = SentAlert(alerta_id, now, scene)
+                self._emit_alert(semaforo_id, result, result.source_frame, now)

@@ -1,44 +1,51 @@
 import { Component, computed, inject } from '@angular/core';
-import { DatePipe, PercentPipe } from '@angular/common';
+import { DatePipe, UpperCasePipe } from '@angular/common';
 
 import { EstadoLuz, EstadoVisual } from '../../core/models/semaforo.model';
 import { PanelStateService } from '../../core/services/panel-state.service';
+import { horaBogota, ZONA_BOGOTA } from '../../shared/hora-bogota';
 import { TrafficLightComponent } from '../../shared/components/traffic-light/traffic-light.component';
 import { ReportFormComponent } from './report-form.component';
 
 @Component({
   selector: 'app-semaforo-detail',
   standalone: true,
-  imports: [DatePipe, PercentPipe, TrafficLightComponent, ReportFormComponent],
+  imports: [DatePipe, UpperCasePipe, TrafficLightComponent, ReportFormComponent],
   template: `
     @if (state.reporteHistorial(); as r) {
-      <h2>{{ r.ubicacion }}</h2>
-      <p class="historial">
-        <span class="estado" [class.verificado]="r.opciones">
-          {{ r.opciones ? 'Reporte verificado' : 'No verificado' }}
-        </span>
-        <small>{{ r.fecha | date: 'dd/MM/yyyy HH:mm' }}</small>
-      </p>
-      <p class="descripcion">{{ r.descripcion }}</p>
-      @if (r.alertasVerificadas) {
-        <p class="descripcion verifico">
-          Verificó {{ r.alertasVerificadas }} {{ r.alertasVerificadas === 1 ? 'alerta' : 'alertas' }}.
-          Última: {{ r.ultimaAlertaVerificada }}
-        </p>
-      }
+      <section class="tarjeta">
+        <div class="titulo-fila">
+          <div>
+            <span class="sobretitulo">INTERSECCIÓN</span>
+            <h2>{{ r.ubicacion }}</h2>
+          </div>
+          <span class="badge" [class.ok]="r.opciones" [class.falla]="!r.opciones">
+            {{ r.opciones ? 'Reporte verificado' : 'No verificado' }}
+          </span>
+        </div>
+        <small class="mono">{{ r.fecha | date: 'dd/MM/yyyy HH:mm' : zona }}</small>
+        <p class="descripcion">{{ r.descripcion }}</p>
+        @if (r.alertasVerificadas) {
+          <p class="descripcion verifico">
+            Verificó {{ r.alertasVerificadas }} {{ r.alertasVerificadas === 1 ? 'alerta' : 'alertas' }}.
+            Última: {{ r.ultimaAlertaVerificada }}
+          </p>
+        }
+      </section>
 
-      <section class="camara">
-        <div class="barra">
-          <strong>Escena</strong>
+      <section class="tarjeta">
+        <div class="titulo-fila">
+          <h3>Escena</h3>
           <button
             type="button"
+            class="expandir"
             [attr.aria-pressed]="state.camaraExpandida()"
             (click)="state.camaraExpandida.set(!state.camaraExpandida())"
           >
             {{ state.camaraExpandida() ? '⤡ Reducir' : '⤢ Expandir' }}
           </button>
         </div>
-        <div class="imagen">
+        <div class="visor">
           <img [src]="'/reportes/' + r.id + '/escena'" alt="Escena de referencia del reporte (escogida al azar)" />
         </div>
       </section>
@@ -51,25 +58,60 @@ import { ReportFormComponent } from './report-form.component';
         (enviado)="state.abrirReporteNuevo($event)"
       />
     } @else { @if (state.seleccionado(); as s) {
-      <h2>{{ s.nombre }}</h2>
-
-      <section class="electrico">
-        <app-traffic-light [ciclo]="grafico().ciclo" [luces]="grafico().luces" [parpadeo]="grafico().parpadeo" />
-        <div class="rotulos">
-          <strong>Estado semáforo</strong>
-          <span>Sistema eléctrico</span>
-          <span class="operativo" [class.falla]="s.estadoOperativo === 'anomalia'">
-            {{ s.estadoOperativo === 'anomalia' ? 'Anomalía' : 'Normal' }}
+      <section class="tarjeta">
+        <div class="titulo-fila">
+          <div>
+            <span class="sobretitulo">INTERSECCIÓN</span>
+            <h2>{{ s.nombre }}</h2>
+          </div>
+          <span class="badge" [class.falla]="s.estadoOperativo === 'anomalia'" [class.ok]="s.estadoOperativo !== 'anomalia'">
+            {{ s.estadoOperativo === 'anomalia' ? 'ANOMALÍA' : 'NORMAL' }}
           </span>
-          <small>Actualizado {{ s.ultimaActualizacion | date: 'HH:mm:ss' }}</small>
+        </div>
+
+        <div class="electrico">
+          <app-traffic-light [ciclo]="grafico().ciclo" [luces]="grafico().luces" [parpadeo]="grafico().parpadeo" />
+          <dl class="filas">
+            <div class="fila">
+              <dt>Sistema eléctrico</dt>
+              <dd class="valor" [class.c-falla]="s.estadoOperativo === 'anomalia'" [class.c-ok]="s.estadoOperativo !== 'anomalia'">
+                {{ s.estadoOperativo === 'anomalia' ? 'Anomalía' : 'Normal' }}
+              </dd>
+            </div>
+            <div class="fila">
+              <dt>Detección YOLO</dt>
+              <dd class="valor" [class]="'c-' + s.estadoVisual">{{ etiquetasVisual[s.estadoVisual] }}</dd>
+              @if (s.confianza != null) {
+                <div
+                  class="barra"
+                  role="progressbar"
+                  aria-label="Confianza de la detección"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  [attr.aria-valuenow]="porcentaje(s.confianza)"
+                  [class]="'c-' + s.estadoVisual"
+                >
+                  <span [style.width.%]="porcentaje(s.confianza)"></span>
+                </div>
+                <small class="mono">
+                  Confianza {{ porcentaje(s.confianza) }} %@if (primerCabezal(); as c) { · #{{ c.numero }} {{ etiquetasVisual[c.estadoVisual] }}}
+                </small>
+              }
+            </div>
+            <div class="fila">
+              <dt>Actualizado</dt>
+              <dd class="mono">{{ hora(s.ultimaActualizacion) }}</dd>
+            </div>
+          </dl>
         </div>
       </section>
 
-      <section class="camara">
-        <div class="barra">
-          <strong>Cámara</strong>
+      <section class="tarjeta">
+        <div class="titulo-fila">
+          <h3>Cámara</h3>
           <button
             type="button"
+            class="expandir"
             [attr.aria-pressed]="state.camaraExpandida()"
             (click)="state.camaraExpandida.set(!state.camaraExpandida())"
           >
@@ -77,16 +119,15 @@ import { ReportFormComponent } from './report-form.component';
           </button>
         </div>
 
-        <div class="imagen">
-          <img [src]="imagenSrc()" alt="Imagen en vivo del semáforo" />
-        </div>
-
-        <p class="deteccion">
-          Detección YOLO: <strong>{{ etiquetasVisual[s.estadoVisual] }}</strong>
-          @if (s.confianza != null) {
-            <small>· Confianza {{ s.confianza | percent }}</small>
+        <div class="visor">
+          @if (s.estadoVisual === 'sin_senal') {
+            <p class="sin-senal">Sin señal</p>
+          } @else {
+            <img [src]="imagenSrc()" alt="Imagen en vivo del semáforo" />
+            <span class="rotulo en-vivo"><i class="punto-vivo"></i>EN VIVO</span>
+            <span class="rotulo cam-id mono">CAM-{{ s.id | uppercase }} · {{ hora(s.ultimaActualizacion) }}</span>
           }
-        </p>
+        </div>
 
         @if (s.cabezales?.length) {
           <div class="cabezales">
@@ -109,29 +150,47 @@ import { ReportFormComponent } from './report-form.component';
     } }
   `,
   styles: [`
-    :host { display: flex; flex-direction: column; gap: 16px; }
-    h2 { margin: 0; font-size: 18px; }
-    .electrico { display: flex; gap: 16px; align-items: flex-start; }
-    .rotulos { display: flex; flex-direction: column; gap: 6px; }
-    .operativo { color: #76c410; font-weight: 600; }
-    .operativo.falla { color: #ff6a5c; }
-    small { color: #aaa; }
-    .camara { display: flex; flex-direction: column; gap: 8px; }
-    .barra { display: flex; justify-content: space-between; align-items: center; }
-    .barra button { padding: 4px 10px; font: inherit; font-size: 13px; border: 2px solid #1e6fff; background: #222; color: #fff; cursor: pointer; }
-    .imagen { background: #fff; padding: 8px; }
-    img { display: block; width: 100%; height: auto; }
-    .deteccion { margin: 0; }
-    .deteccion small { margin-left: 6px; }
+    :host { display: flex; flex-direction: column; gap: var(--sp-3); }
+    .tarjeta { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-panel); }
+    .titulo-fila { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-3); }
+    .sobretitulo { display: block; color: var(--text-muted); font-size: 12px; font-weight: 500; letter-spacing: 0.08em; }
+    h2 { margin: 0; font-family: var(--font-display); font-size: 22px; font-weight: 600; }
+    h3 { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 600; }
+    .mono { font-family: var(--font-mono); }
+    small { color: var(--text-muted); font-size: 12px; }
+    .badge { flex: none; padding: 3px 10px; border: 1px solid var(--border); border-radius: var(--r-pill); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; }
+    .badge.falla { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+    .badge.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
+
+    .electrico { display: flex; gap: var(--sp-4); align-items: flex-start; }
+    .filas { display: flex; flex: 1; flex-direction: column; gap: var(--sp-3); min-width: 0; margin: 0; }
+    .fila { display: flex; flex-direction: column; gap: 4px; }
+    dt { color: var(--text-muted); font-size: 12px; font-weight: 500; }
+    dd { margin: 0; }
+    .valor { font-size: 15px; font-weight: 600; }
+    .c-falla, .c-rojo, .c-multiple { color: var(--danger); }
+    .c-ok, .c-verde { color: var(--ok); }
+    .c-amarillo, .c-amarillo_intermitente { color: var(--warning); }
+    .c-apagado, .c-sin_deteccion, .c-desconocido, .c-sin_senal { color: var(--text-muted); }
+    .barra { height: 6px; border-radius: var(--r-pill); background: var(--border); overflow: hidden; }
+    .barra span { display: block; height: 100%; border-radius: var(--r-pill); background: currentColor; }
+
+    .expandir { min-height: 36px; padding: 0 var(--sp-3); border: 1px solid var(--border); border-radius: var(--r-control); background: transparent; color: var(--accent); font-size: 13px; font-weight: 500; cursor: pointer; }
+    .expandir:hover { border-color: var(--accent); }
+    .visor { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r-control); background: var(--surface-deep); }
+    .visor img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .rotulo { position: absolute; padding: 3px 8px; border-radius: var(--r-chip); background: color-mix(in srgb, black 80%, transparent); color: var(--text); font-size: 12px; font-weight: 600; }
+    .en-vivo { top: var(--sp-2); left: var(--sp-2); display: inline-flex; align-items: center; gap: 6px; letter-spacing: 0.04em; }
+    .punto-vivo { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+    .cam-id { right: var(--sp-2); bottom: var(--sp-2); font-weight: 400; }
+    .sin-senal { display: flex; align-items: center; justify-content: center; height: 100%; margin: 0; color: var(--text-muted); }
+
     .cabezales { display: flex; flex-wrap: wrap; gap: 6px; }
-    .cabezal { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #2c2c2c; border: 1px solid #555; color: #ddd; }
-    .cabezal.alerta { background: #5c1916; border-color: #ff6a5c; color: #fff; }
-    .historial { display: flex; gap: 10px; align-items: center; margin: 0; }
-    .estado { padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: #8a1f1c; }
-    .estado.verificado { background: #2e5e12; }
+    .cabezal { padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--r-chip); background: var(--chip-bg); color: var(--text); font-size: 12px; }
+    .cabezal.alerta { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 14%, transparent); }
     .descripcion { margin: 0; font-size: 14px; }
-    .descripcion.verifico { font-size: 13px; color: #ccc; }
-    .vacio { color: #aaa; }
+    .descripcion.verifico { font-size: 13px; color: var(--text-muted); }
+    .vacio { color: var(--text-muted); }
   `]
 })
 export class SemaforoDetailComponent {
@@ -171,6 +230,15 @@ export class SemaforoDetailComponent {
       default: // apagado, sin_deteccion, desconocido, sin_senal: no hay luz que mostrar
         return sinLuces;
     }
+  });
+
+  protected readonly zona = ZONA_BOGOTA;
+  protected hora = horaBogota;
+  protected porcentaje = (confianza: number): number => Math.round(confianza * 100);
+
+  protected primerCabezal = computed(() => {
+    const cabezales = this.state.seleccionado()?.cabezales;
+    return cabezales?.find((c) => c.numero === 1) ?? cabezales?.[0] ?? null;
   });
 
   protected cantidadCabezales(semaforoId: string): number {
