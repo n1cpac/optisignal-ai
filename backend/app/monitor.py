@@ -1,5 +1,7 @@
 # Ciclo de vision: lee cada camara, detecta con YOLO, rastrea con ByteTrack+Kalman, clasifica en HSV y audita con FSM
+import gc
 import logging
+import os
 import threading
 import time
 from dataclasses import replace as _dc_replace
@@ -449,7 +451,10 @@ class Monitor:
         self._thread = threading.Thread(target=self._run, daemon=True)
 
     def start(self) -> None:
-        for feed in self.feeds.values():
+        low_mem = os.environ.get("OPTISIGNAL_LOW_MEM") == "1"
+        for sid, feed in self.feeds.items():
+            if low_mem and hasattr(feed, "set_continuous"):
+                feed.set_continuous(sid in self.active_streams)
             feed.start()
         self._thread.start()
 
@@ -520,10 +525,15 @@ class Monitor:
         batch_fn = getattr(self.detector, "detect_batch", None)
         all_items = list(self.feeds.items())
         cursor = 0
-        chunk_size = 4
+        low_mem = os.environ.get("OPTISIGNAL_LOW_MEM") == "1"
+        chunk_size = 1 if low_mem else 4
         while not self._stop.is_set():
             started = time.monotonic()
-            if len(self.results) < len(all_items):
+            if low_mem:
+                for sid, feed in all_items:
+                    if hasattr(feed, "set_continuous"):
+                        feed.set_continuous(sid in self.active_streams)
+            if not low_mem and len(self.results) < len(all_items):
                 items = all_items
             else:
                 sliced = [all_items[(cursor + i) % len(all_items)] for i in range(min(chunk_size, len(all_items)))]
@@ -536,6 +546,11 @@ class Monitor:
                         sliced.append((sid, feed))
                         selected_ids.add(sid)
                 items = sliced
+
+            if low_mem:
+                for sid, feed in items:
+                    if sid not in self.active_streams and hasattr(feed, "step_batch_and_release"):
+                        feed.step_batch_and_release(n_frames=4)
 
             stamped = [
                 feed.read_stamped() if hasattr(feed, "read_stamped") else (feed.read(), time.monotonic(), 0)
@@ -572,7 +587,12 @@ class Monitor:
                         logger.exception("Fallo al analizar la camara %s", semaforo_id)
 
             self._advance_idle_cameras({sid for sid, _ in items})
-            self._stop.wait(max(0.04, self.interval_seconds - (time.monotonic() - started)))
+            if low_mem:
+                gc.collect()
+                wait_s = 0.02 if len(self.results) < len(all_items) else max(0.04, self.interval_seconds - (time.monotonic() - started))
+            else:
+                wait_s = max(0.04, self.interval_seconds - (time.monotonic() - started))
+            self._stop.wait(wait_s)
 
     def _process(
         self,

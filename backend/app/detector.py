@@ -8,7 +8,8 @@ from ultralytics import YOLO
 
 from app.config import ROOT, SETTINGS
 
-torch.set_num_threads(max(1, min(4, (os.cpu_count() or 4) // 2)))
+_default_threads = 1 if os.environ.get("OPTISIGNAL_LOW_MEM") == "1" else max(1, min(4, (os.cpu_count() or 4) // 2))
+torch.set_num_threads(int(os.environ.get("TORCH_NUM_THREADS", str(_default_threads))))
 
 
 class Detection(NamedTuple):
@@ -183,21 +184,31 @@ class Detector:
         device = self.settings.get("device", "cpu")
 
         candidates_per_frame: List[List[Detection]] = [[] for _ in valid_frames]
-        for model in self.models:
-            results = model.predict(
-                valid_frames,
-                conf=low_conf,
-                iou=iou_thresh,
-                imgsz=imgsz,
-                device=device,
-                verbose=False,
-            )
-            for idx, result in enumerate(results):
-                f_shape = valid_frames[idx].shape[:2]
-                for box, confidence in zip(result.boxes.xyxy.tolist(), result.boxes.conf.tolist()):
-                    tbox = (float(box[0]), float(box[1]), float(box[2]), float(box[3]))
-                    if self._is_valid_box(tbox, f_shape):
-                        candidates_per_frame[idx].append(Detection(tbox, float(confidence), 1))
+        default_batch = 1 if os.environ.get("OPTISIGNAL_LOW_MEM") == "1" else len(valid_frames)
+        micro_batch = int(os.environ.get("OPTISIGNAL_YOLO_BATCH", str(default_batch)))
+        if micro_batch <= 0:
+            micro_batch = len(valid_frames)
+
+        with torch.inference_mode():
+            for model in self.models:
+                for start in range(0, len(valid_frames), micro_batch):
+                    chunk = valid_frames[start:start + micro_batch]
+                    results = model.predict(
+                        chunk,
+                        conf=low_conf,
+                        iou=iou_thresh,
+                        imgsz=imgsz,
+                        device=device,
+                        verbose=False,
+                    )
+                    for offset, result in enumerate(results):
+                        idx = start + offset
+                        f_shape = valid_frames[idx].shape[:2]
+                        for box, confidence in zip(result.boxes.xyxy.tolist(), result.boxes.conf.tolist()):
+                            tbox = (float(box[0]), float(box[1]), float(box[2]), float(box[3]))
+                            if self._is_valid_box(tbox, f_shape):
+                                candidates_per_frame[idx].append(Detection(tbox, float(confidence), 1))
+                    del results
 
         output: List[List[Detection]] = [[] for _ in frames]
         for idx, orig_idx in enumerate(valid_indices):

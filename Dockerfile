@@ -35,6 +35,14 @@ RUN mkdir -p /app/data/db
 
 ENV PYTHONPATH=/app/backend \
     PYTHONUNBUFFERED=1 \
+    MALLOC_ARENA_MAX=2 \
+    OMP_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    TORCH_NUM_THREADS=1 \
+    OPENCV_FFMPEG_CAPTURE_OPTIONS="threads;1" \
+    OPTISIGNAL_LOW_MEM=1 \
+    OPTISIGNAL_YOLO_BATCH=1 \
     OPTISIGNAL_FRONTEND_DIST=/app/frontend_dist \
     OPTISIGNAL_DB_PATH=/app/data/db/optisignal.db
 
